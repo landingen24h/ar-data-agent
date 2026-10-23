@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { buildSnapshot, fetchAccounts, hashLines, SPL_TOKEN, TOKEN_2022 } from '../src/index.ts';
+import { buildSnapshot, fetchAccounts, hashLines, snapshot, SPL_TOKEN, TOKEN_2022 } from '../src/index.ts';
 import { run } from '../src/cli.ts';
 
 const MINT = 'Mint1111111111111111111111111111111111111111';
@@ -148,4 +148,14 @@ test('A7 recorded fixture of a real Token 2022 mint (PYUSD on Solana mainnet)', 
   assert.ok(fx.accounts.some((a: any) => (a.account.data.parsed.info.extensions ?? []).some((e: any) => e.extension === 'transferFeeAmount')));
   assert.ok(!s.holders.some((h) => ex.owners.includes(h.owner)));
   assert.equal(buildSnapshot({ mint: expected.mint, slot: fx.slot, accounts: shuffle(fx.accounts, 42), exclusions: ex }).hash, expected.hash);
+});
+
+test('A4 snapshot({accounts, exclusions, top}) infers the mint and gives the same hash as buildSnapshot', () => {
+  const fx = JSON.parse(readFileSync(new URL('../fixtures/pyusd-token2022.json', import.meta.url), 'utf8'));
+  const expected = JSON.parse(readFileSync(new URL('../fixtures/pyusd-token2022.expected.json', import.meta.url), 'utf8'));
+  const ex = JSON.parse(readFileSync(new URL('../fixtures/pyusd-exclusions.json', import.meta.url), 'utf8'));
+  const s = snapshot({ accounts: fx.accounts, exclusions: ex, top: 100 });
+  assert.equal(s.hash, expected.hash);
+  assert.deepEqual(s.holders, expected.holders);
+  assert.throws(() => snapshot({ accounts: [acc('a', 'x', '1'), acc('b', 'y', '1', { mint: 'Other' })] as any }), /more than one mint/);
 });

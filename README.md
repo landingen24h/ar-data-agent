@@ -12,6 +12,7 @@ const snap = buildSnapshot({ mint, slot, accounts, exclusions: { owners: [], tok
 // { mint, slot, total, holders: [{ rank, owner, amount }], hash }
 ```
 
+* snapshot({accounts, exclusions, top}) returns the same result with the mint taken from the accounts (they must all be of one mint, otherwise pass mint).
 * buildSnapshot is pure. Only items of parsed type account, of the mint, owned by one of the two token programs and with a positive amount count. A token account (pubkey) counts once even if an answer repeats it. Amounts are base units as decimal strings, summed per owner with BigInt.
 * exclusions is {owners, token_accounts}. An excluded owner or token account is left out of the ranking and of total.
 * Ranking: amount descending, ties by owner ascending with plain string comparison. Ranks start at 1. top defaults to 100. total is the sum over all counted owners after exclusions.

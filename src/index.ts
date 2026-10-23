@@ -127,3 +127,21 @@ export async function fetchAccounts(opts: {
   );
   return { slot: Math.min(...answers.map((a) => a.slot)), accounts: answers.flatMap((a) => a.value) };
 }
+
+/**
+ * The shape of the "KOG top holder snapshot" seat: snapshot({accounts, exclusions, top}) -> {holders, hash}.
+ * Without mint, the accounts must all be of one mint (other items are ignored as in buildSnapshot); mixed mints throw.
+ */
+export function snapshot(input: { accounts: ParsedTokenAccount[]; exclusions?: Exclusions; top?: number; mint?: string; slot?: number }): Snapshot {
+  let mint = input.mint;
+  if (!mint) {
+    const mints = new Set<string>();
+    for (const a of input.accounts ?? []) {
+      const p = (a?.account as any)?.data?.parsed;
+      if (p?.type === 'account' && typeof p.info?.mint === 'string') mints.add(p.info.mint);
+    }
+    if (mints.size !== 1) throw new Error(mints.size === 0 ? 'no token accounts' : 'accounts of more than one mint: pass mint');
+    mint = [...mints][0];
+  }
+  return buildSnapshot({ mint, slot: input.slot ?? 0, accounts: input.accounts, exclusions: input.exclusions, top: input.top });
+}
