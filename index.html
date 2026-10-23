@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Founding Charter verifier</title>
+<script type="importmap">{ "imports": { "viem": "https://esm.sh/viem@2.21.45" } }</script>
+<style>
+*{box-sizing:border-box}body{font:16px/1.5 system-ui,sans-serif;margin:0 auto;max-width:760px;padding:1rem;color:#1d2330}
+label{display:block;margin:.6rem 0 .2rem;font-weight:600}input,select,button{width:100%;font:inherit;padding:.55rem;border:1px solid #c5cad3;border-radius:6px}
+button{background:#0b57d0;color:#fff;border:0;margin-top:1rem;cursor:pointer}button:disabled{opacity:.6}
+.card{border:1px solid #dde1e7;border-radius:8px;padding:.8rem;margin:.6rem 0;overflow-wrap:anywhere}
+.ok{color:#137333}.bad{color:#b3261e}code{font-size:.85em;background:#f2f4f7;padding:0 .25em}
+</style>
+</head>
+<body>
+<h1>Founding Charter verifier</h1>
+<p>Reads the Charter attestation from EAS on Base, fetches every text from IPFS, recomputes its sha256 and shows match or mismatch per text. No wallet, no key.</p>
+<form id="f">
+<label for="uid">Attestation UID</label><input id="uid" required placeholder="0x... (64 hex)" autocomplete="off">
+<label for="net">Network</label><select id="net"><option value="base">Base</option><option value="base-sepolia">Base Sepolia</option></select>
+<label for="rpc">RPC URL</label><input id="rpc">
+<label for="gw">IPFS gateway</label><input id="gw">
+<button id="go">Verify</button>
+</form>
+<div id="out" aria-live="polite"></div>
+<script type="module">
+import { verifyCharter, httpRpc, gatewayIpfs, NETWORKS, DEFAULT_GATEWAY } from './verifier.js';
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+const q = new URLSearchParams(location.search);
+$('uid').value = q.get('uid') || ''; $('net').value = NETWORKS[q.get('network')] ? q.get('network') : 'base';
+const setRpc = () => { $('rpc').value = NETWORKS[$('net').value].rpcUrl; };
+setRpc(); $('net').onchange = setRpc; $('gw').value = q.get('gateway') || DEFAULT_GATEWAY;
+$('f').onsubmit = async (e) => {
+  e.preventDefault(); $('go').disabled = true; $('out').innerHTML = '<p>Checking...</p>';
+  const r = await verifyCharter({ uid: $('uid').value.trim(), network: $('net').value, rpc: httpRpc($('rpc').value.trim()), ipfs: gatewayIpfs($('gw').value.trim()) });
+  const a = r.attestation;
+  let h = `<div class="card"><strong class="${r.ok ? 'ok' : 'bad'}">${r.ok ? 'Verified: every text matches' : 'Not verified'}</strong>${r.reason ? `<br>${esc(r.reason)}` : ''}`;
+  if (a.attester) h += `<br>Attester <code>${esc(a.attester)}</code><br>Time ${esc(new Date(a.time * 1000).toISOString())}<br>Revoked ${a.revoked ? 'yes' : 'no'}${r.version ? `<br>Version ${esc(r.version)}, date ${esc(r.date)}` : ''}`;
+  h += '</div>';
+  for (const t of r.texts) h += `<div class="card"><strong class="${t.match ? 'ok' : 'bad'}">${esc(t.name)}: ${t.match ? 'match' : 'mismatch'}</strong><br>CID <code>${esc(t.cid)}</code><br>Expected <code>${esc(t.expected)}</code><br>Actual <code>${esc(t.actual ?? 'not fetched')}</code>${t.error ? `<br>${esc(t.error)}` : ''}</div>`;
+  $('out').innerHTML = h; $('go').disabled = false;
+};
+if ($('uid').value) $('f').requestSubmit();
+</script>
+</body>
+</html>

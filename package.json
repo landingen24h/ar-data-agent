@@ -1,0 +1,15 @@
+{
+  "name": "charter-verifier",
+  "version": "0.1.0",
+  "description": "Charter attestation verifier page: read the Founding Charter EAS attestation on Base or Base Sepolia, fetch each text from IPFS, recompute its sha256 and show match or mismatch per text.",
+  "type": "module",
+  "license": "MIT",
+  "main": "verifier.js",
+  "exports": { ".": "./verifier.js" },
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "coverage": "node --test --experimental-test-coverage test/*.test.mjs"
+  },
+  "engines": { "node": ">=20" },
+  "dependencies": { "viem": "2.21.45" }
+}
