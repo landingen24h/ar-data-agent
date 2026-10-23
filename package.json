@@ -1,0 +1,15 @@
+{
+  "name": "erc8004-viewer",
+  "version": "0.1.0",
+  "description": "ERC-8004 identity viewer: a static page that reads an agent's on chain identity (owner, tokenURI, registration file) and reputation feedback on Base and Base Sepolia.",
+  "type": "module",
+  "license": "MIT",
+  "main": "viewer.js",
+  "exports": { ".": "./viewer.js", "./config.js": "./config.js" },
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "coverage": "node --test --experimental-test-coverage test/*.test.mjs"
+  },
+  "engines": { "node": ">=20" },
+  "dependencies": { "viem": "2.21.45" }
+}

@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ERC-8004 identity viewer</title>
+<script type="importmap">{ "imports": { "viem": "https://esm.sh/viem@2.21.45" } }</script>
+<style>
+:root{color-scheme: light dark;--fg:#1d2330;--bg:#fff;--mute:#5b6472;--line:#dde1e7;--code:#f2f4f7;--acc:#0b57d0;--ok:#137333;--bad:#b3261e}
+@media (prefers-color-scheme: dark){:root{--fg:#e6e8ec;--bg:#14171c;--mute:#9aa3b2;--line:#2f3540;--code:#232832;--acc:#8ab4f8;--ok:#81c995;--bad:#f28b82}}
+*{box-sizing:border-box}body{font:16px/1.5 system-ui,sans-serif;margin:0 auto;max-width:760px;padding:1rem;color:var(--fg);background:var(--bg)}
+label{display:block;margin:.6rem 0 .2rem;font-weight:600}input,select,button{width:100%;font:inherit;padding:.55rem;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg)}
+button{background:var(--acc);color:var(--bg);border:0;margin-top:1rem;cursor:pointer}button:disabled{opacity:.6}
+.card{border:1px solid var(--line);border-radius:8px;padding:.8rem;margin:.6rem 0;overflow-wrap:anywhere}
+.ok{color:var(--ok)}.bad{color:var(--bad)}.mute{color:var(--mute)}code{font-size:.85em;background:var(--code);padding:0 .25em}
+.head{display:flex;gap:.8rem;align-items:flex-start}.head img{width:72px;height:72px;object-fit:cover;border-radius:8px;flex:none}
+ul{padding-left:1.1rem}table{width:100%;border-collapse:collapse;font-size:.9em}td,th{text-align:left;padding:.25rem;border-bottom:1px solid var(--line);vertical-align:top}
+</style>
+</head>
+<body>
+<h1>ERC-8004 identity viewer</h1>
+<p class="mute">Reads an agent's identity (owner, tokenURI, registration file) and its reputation feedback from the ERC-8004 registries on Base. No wallet, no key, no backend.</p>
+<form id="f">
+<label for="id">Agent id</label><input id="id" required inputmode="numeric" placeholder="for example 1" autocomplete="off">
+<label for="net">Network</label><select id="net"><option value="base">Base</option><option value="base-sepolia">Base Sepolia</option></select>
+<label for="rpc">RPC URL</label><input id="rpc">
+<label for="gw">IPFS gateway</label><input id="gw">
+<button id="go">Show agent</button>
+</form>
+<div id="out" aria-live="polite"></div>
+<script type="module">
+import { loadAgent, describe, httpRpc, httpFetchJson, ipfsToHttp } from './viewer.js';
+import { REGISTRIES, DEFAULT_GATEWAY } from './config.js';
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+const q = new URLSearchParams(location.search);
+$('id').value = q.get('agent') || '';
+$('net').value = REGISTRIES[q.get('network')] ? q.get('network') : 'base';
+const setRpc = () => { $('rpc').value = REGISTRIES[$('net').value].rpcUrl; };
+setRpc(); $('net').onchange = setRpc; $('gw').value = q.get('gateway') || DEFAULT_GATEWAY;
+const img = (u, gw) => (/^https:\/\//.test(u) ? u : u.startsWith('ipfs://') ? ipfsToHttp(u, gw) : /^data:image\/(png|jpeg|gif|webp);/.test(u) ? u : null);
+const link = (u) => (/^https:\/\//.test(u) ? `<a href="${esc(u)}" rel="noopener noreferrer">${esc(u)}</a>` : `<code>${esc(u)}</code>`);
+async function show() {
+  const net = $('net').value, gw = $('gw').value.trim(), reg = REGISTRIES[net];
+  $('go').disabled = true; $('out').innerHTML = '<p>Reading the registries...</p>';
+  const r = await loadAgent({ agentId: $('id').value, network: net, identityRegistry: reg.identity, reputationRegistry: reg.reputation, rpc: httpRpc($('rpc').value.trim()), fetchJson: httpFetchJson(), gateway: gw });
+  let h = '';
+  if (r.status === 'empty') h = `<div class="card"><strong>No agent ${esc(r.agentId)} on ${esc(net)}.</strong><br><span class="mute">The identity registry has no owner for this id.</span></div>`;
+  if (r.status === 'error') h = `<div class="card"><strong class="bad">Could not show this agent</strong><br>${esc(r.error)}</div>`;
+  if (r.owner) {
+    const d = describe(r.registration), src = d.image && img(d.image, gw);
+    h += `<div class="card"><div class="head">${src ? `<img src="${esc(src)}" alt="" referrerpolicy="no-referrer">` : ''}<div><strong>${esc(d.name || 'Agent ' + r.agentId)}</strong><br><span class="mute">Agent ${esc(r.agentId)} on ${esc(net)}</span></div></div>`;
+    if (d.description) h += `<p>${esc(d.description)}</p>`;
+    h += `Owner <code>${esc(r.owner)}</code><br>tokenURI ${r.tokenURI ? (r.tokenURI.startsWith('data:') ? `<code>${esc(r.tokenURI.slice(0, 40))}...</code> (inline)` : link(r.tokenURI)) : '<span class="mute">none set</span>'}`;
+    if (r.status === 'ok' && !r.registration) h += '<p class="mute">This agent has no registration file.</p>';
+    if (d.endpoints.length) h += `<h3>Endpoints</h3><ul>${d.endpoints.map((e) => `<li>${esc(e.name)}${e.version ? ' ' + esc(e.version) : ''}: ${link(e.endpoint)}</li>`).join('')}</ul>`;
+    if (d.supportedTrust.length) h += `<h3>Supported trust</h3><p>${d.supportedTrust.map(esc).join(', ')}</p>`;
+    h += '</div>';
+  }
+  if (r.feedback) {
+    const f = r.feedback;
+    h += `<div class="card"><h3>Reputation</h3>${f.count ? `<p><strong>${f.count}</strong> feedback entries, average score <strong>${f.average}</strong></p><table><tr><th>Client</th><th>Score</th><th>Tags</th></tr>${f.items.slice(0, 10).map((x) => `<tr><td><code>${esc(x.client.slice(0, 6) + '...' + x.client.slice(-4))}</code></td><td>${esc(x.score)}</td><td>${esc(x.tags.join(', '))}</td></tr>`).join('')}</table>${f.count > 10 ? '<p class="mute">Latest 10 shown.</p>' : ''}` : '<p>No feedback yet for this agent.</p>'}</div>`;
+  }
+  $('out').innerHTML = h; $('go').disabled = false;
+  history.replaceState(null, '', `?agent=${encodeURIComponent(r.agentId)}&network=${net}`);
+}
+$('f').onsubmit = (e) => { e.preventDefault(); show(); };
+if ($('id').value) show();
+</script>
+</body>
+</html>
