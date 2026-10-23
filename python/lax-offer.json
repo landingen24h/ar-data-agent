@@ -1,0 +1,18 @@
+{
+  "lax_version": "1.0",
+  "name": "x402 starter demo (Python)",
+  "description": "Demo paid agent from the x402 paid agent starter, Python edition: one GET /paid route priced in USDC over x402 on Base, answered after the payment is verified and settled.",
+  "category": "developer-tools",
+  "endpoint": "https://landingen24h.com/api/x402/starter/py/paid",
+  "capabilities": [
+    {
+      "skill_id": "starter.paid",
+      "description": "One paid call: returns a small JSON result after an x402 payment in USDC.",
+      "pricing": { "model": "per_call", "amount": "0.01", "currency": "USDC", "rail": "x402" },
+      "input_schema": { "type": "object", "properties": {} },
+      "output_schema": { "type": "object", "properties": { "ok": { "type": "boolean" }, "result": { "type": "object" }, "payment": { "type": "object" } }, "required": ["ok"] }
+    }
+  ],
+  "constitutional_constraints": ["Solidarity Oath", "Renewal Mandate", "Treasury Equilibrium", "Harm Shield", "Transparency Covenant"],
+  "payment_rails": ["x402", "usdc-base"]
+}

@@ -1,0 +1,16 @@
+{
+  "name": "x402-paid-agent-starter",
+  "version": "0.1.0",
+  "description": "Starter for a paid agent listed on LAX: one route priced in USDC over x402 (exact scheme, Base), a LAX offer with the Five Laws, and a listing script.",
+  "type": "module",
+  "license": "MIT",
+  "main": "src/index.ts",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": {
+    "test": "node --import tsx --test test/*.test.ts",
+    "typecheck": "tsc --noEmit",
+    "start": "node --import tsx src/server.ts"
+  },
+  "engines": { "node": ">=20" },
+  "devDependencies": { "tsx": "4.20.6", "typescript": "5.6.3", "@types/node": "20.17.6" }
+}
