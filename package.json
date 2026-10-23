@@ -1,0 +1,29 @@
+{
+  "name": "solana-holder-snapshot",
+  "version": "0.1.0",
+  "description": "Reproducible top holder snapshot of a Solana token (SPL Token and Token 2022), with a sha256 of the ranked list.",
+  "type": "module",
+  "license": "MIT",
+  "main": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "bin": {
+    "kog-snapshot": "bin/kog-snapshot.mjs"
+  },
+  "scripts": {
+    "test": "node --import tsx --test test/*.test.ts",
+    "coverage": "node --import tsx --test --experimental-test-coverage test/*.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "tsx": "4.20.6"
+  },
+  "devDependencies": {
+    "typescript": "5.6.3",
+    "@types/node": "20.17.6"
+  }
+}
