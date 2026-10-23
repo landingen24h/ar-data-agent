@@ -1,0 +1,17 @@
+{
+  "name": "kognai-research-brief",
+  "version": "0.1.0",
+  "description": "A product template on @kognai/build: turns a one line request into a research brief (brief.md, sources.md, run.json) built by the Kognai engine, on the cloud or sovereign.",
+  "type": "module",
+  "license": "MIT",
+  "main": "src/index.js",
+  "exports": { ".": "./src/index.js" },
+  "bin": { "kognai-research-brief": "src/cli.js" },
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "coverage": "node --test --experimental-test-coverage test/*.test.mjs"
+  },
+  "engines": { "node": ">=20" },
+  "peerDependencies": { "@kognai/build": ">=0.7.0" },
+  "peerDependenciesMeta": { "@kognai/build": { "optional": true } }
+}

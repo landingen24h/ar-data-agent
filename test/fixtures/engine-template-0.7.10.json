@@ -1,0 +1,44 @@
+{
+  "id": "research-synthesis-default",
+  "name": "Research Synthesis (Default)",
+  "intent": [
+    "literature review",
+    "research",
+    "synthesis",
+    "paper",
+    "citation"
+  ],
+  "default_profile": {
+    "primary": "quality",
+    "secondary": [
+      "maintainability"
+    ]
+  },
+  "composition": {
+    "roles": [
+      {
+        "role": "researcher",
+        "count": 2
+      },
+      {
+        "role": "synthesizer",
+        "count": 1
+      },
+      {
+        "role": "reviewer",
+        "count": 1
+      }
+    ]
+  },
+  "workflow": "gather sources → extract claims → cross-reference citations → synthesize narrative → peer-review for accuracy → ship if approved",
+  "skills": [
+    "citation-validation",
+    "source-credibility",
+    "claim-extraction"
+  ],
+  "tools": [
+    "web-search",
+    "pdf-reader",
+    "citation-manager"
+  ]
+}

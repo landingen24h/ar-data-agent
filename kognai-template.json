@@ -1,0 +1,11 @@
+{
+  "id": "research-brief-product",
+  "name": "Research Brief (product template)",
+  "intent": ["research brief", "brief", "briefing", "market research", "competitor scan", "research"],
+  "default_profile": { "primary": "quality", "secondary": ["cost-efficiency"] },
+  "composition": { "roles": [ { "role": "researcher", "count": 1 }, { "role": "synthesizer", "count": 1 }, { "role": "reviewer", "count": 1 } ] },
+  "workflow": "read the brief, list the questions, gather facts, synthesize one brief, review for unsupported claims, ship",
+  "skills": ["claim-extraction", "source-credibility", "plain-language-summary"],
+  "tools": ["markdown-editor"],
+  "cost_per_run": { "cloud_usd": null, "sovereign_usd": 0, "measured_on": null, "runs": 0 }
+}
