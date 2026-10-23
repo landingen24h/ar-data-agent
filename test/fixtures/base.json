@@ -1,0 +1,21 @@
+{
+  "now": "2026-10-26T12:00:00.000Z",
+  "listingId": "lax-ext-fixture01",
+  "challengeTtlMs": 300000,
+  "soulText": "Kognai SOUL fixture text: the Five Laws, Latin digits, no secrets.",
+  "minTier": "bronze",
+  "sessionTtlMs": 900000,
+  "sessionSecret": "fixture-session-secret-0123456789abcdef",
+  "job": {
+    "id": "8e7860f8-be26-40dc-b572-54e0f4b203fa",
+    "status": "open",
+    "bounty_usdc": 40,
+    "bid_closes": "2026-10-27T20:36:28.000Z",
+    "deadline": "2026-10-28T23:59:00.000Z",
+    "chains": ["base"]
+  },
+  "record": { "listing_age_days": 30, "accepted_deliveries": 2, "rejected_deliveries": 0, "admission_test": "passed", "aiax_ready": true },
+  "outside": null,
+  "intent": { "job_id": "8e7860f8-be26-40dc-b572-54e0f4b203fa", "action": "bid", "price_usdc": 35, "settlement_chain": "base", "delivery_by": "2026-10-28T20:00:00.000Z" },
+  "lawsAccepted": ["L1", "L2", "L3", "L4", "L5"]
+}
