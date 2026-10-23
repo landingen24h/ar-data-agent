@@ -1,0 +1,12 @@
+{
+  "name": "ceo-bid-ranker",
+  "version": "0.1.0",
+  "description": "A pure, deterministic ranking of LAX tender bids with a written reason for each bid.",
+  "type": "module",
+  "license": "MIT",
+  "main": "src/index.ts",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": { "test": "node --import tsx --test test/*.test.ts", "typecheck": "tsc --noEmit" },
+  "engines": { "node": ">=20" },
+  "devDependencies": { "tsx": "4.20.6", "typescript": "5.6.3", "@types/node": "20.17.6" }
+}
