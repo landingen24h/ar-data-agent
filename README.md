@@ -70,11 +70,16 @@ client ── GET /ar/dolar + PAYMENT-SIGNATURE ─────────▶ a
   Registered as **agentId 9988** (`eip155:42220:0x8004A169FB4a3325136EB29fA0ceB6D2e539a432`),
   tx [`0x76a16796…f38f`](https://celoscan.io/tx/0x76a16796806af337295983a784ebea8e1b30d63633686c8250a7e097d852f38f),
   agent URI `https://landingen24h.com/celo/.well-known/agent-registration.json`.
-- **ERC-8021 attribution tag:** every transaction this project sends itself (the ERC-8004
-  registration, test payments) carries the tag from `@celo/attribution-tags`. The code is
-  `codeFromRepo("landingen24h/ar-data-agent")`, asserted at startup in `src/attribution.js`.
-- **x402 settlements** are submitted by the Celo facilitator, which does not carry tags yet;
-  they are attributed through the **PayTo** wallet listed below.
+- **ERC-8021 attribution tag:** the project's code is **`celo_85d42ed6ebcf`**, the code issued
+  at hackathon enrollment (`src/attribution-code.js`, the single source of truth). It is attached
+  once, where the wallet client is built (`taggedWalletClient` = viem client extended with
+  `withAttribution` from `@celo/attribution-tags`), so every transaction the project sends
+  itself carries it. (The ERC-8004 registration above predates enrollment and carries an
+  earlier, repo-derived code.)
+- **x402 settlements** are submitted by the Celo facilitator, which does not write tags yet.
+  Every 402 response declares the app code through the x402 `builder-code` extension
+  (`{ a: "celo_85d42ed6ebcf" }`), which the facilitator picks up once it writes ERC-8021
+  Schema 2 tags; until then settlements are attributed through the **PayTo** wallet below.
 - **Gas:** payers pay no gas. Settlement gas is paid by the Celo facilitator from the seller's
   facilitator account, not by this project's wallet.
 
@@ -135,7 +140,8 @@ AGENT_PRIVATE_KEY=0x... node scripts/register-agent.js https://<host>/.well-know
 incl. business days across holidays and year end), prices in base units, the 402 body
 (wARS first, Permit2 + gas sponsoring), a full signed payment through the official client
 against a mock facilitator, no settlement on upstream failure, free rejection of bad
-input, and the attribution tag on the ERC-8004 calldata. `npm run test:live` also sends a
+input, the attribution code, the wallet client tagging every transaction exactly once, and
+the `builder-code` declaration on every paid route. `npm run test:live` also sends a
 wARS payment signed by a fresh empty wallet to the real Celo facilitator's `/verify`,
 which accepts the Permit2 and EIP-2612 signatures and fails only at the balance transfer.
 

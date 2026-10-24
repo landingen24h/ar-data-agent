@@ -1,6 +1,8 @@
 // Assets and prices. Addresses and EIP-712 `extra` values come from the Celo
 // x402 facilitator's own table (https://x402.celo.org/api/config, /supported).
 import { getAddress } from 'viem';
+import { declareBuilderCodeExtension } from '@x402/extensions/builder-code';
+import { ATTRIBUTION_CODE } from './attribution-code.js';
 
 export const CELO_MAINNET = 'eip155:42220';
 export const FACILITATOR_MAINNET = 'https://api.x402.celo.org';
@@ -48,7 +50,11 @@ export function x402Routes(payTo, opts = {}) {
       accepts: acceptsFor(path, payTo, opts),
       description: r.description,
       mimeType: 'application/json',
-      extensions: { eip2612GasSponsoring: { info: { description: 'The facilitator sponsors the EIP-2612 permit to Permit2.', version: '1' } } },
+      extensions: {
+        eip2612GasSponsoring: { info: { description: 'The facilitator sponsors the EIP-2612 permit to Permit2.', version: '1' } },
+        // ERC-8021 Schema 2 app code for settlements; picked up once the facilitator writes builder codes.
+        'builder-code': declareBuilderCodeExtension(ATTRIBUTION_CODE),
+      },
     };
   }
   return out;

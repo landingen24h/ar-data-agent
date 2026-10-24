@@ -1,10 +1,13 @@
 import { describe, it, expect, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { generatePrivateKey } from 'viem/accounts';
-import { fromDataSuffix, codeFromRepo } from '@celo/attribution-tags';
+import { fromDataSuffix } from '@celo/attribution-tags';
+import { custom, parseTransaction } from 'viem';
+import { privateKeyToAccount } from 'viem/accounts';
+import { celo } from 'viem/chains';
 import { createApp, rampUrl, registrationFile } from '../src/app.js';
 import { ASSETS, toBaseUnits, x402Routes } from '../src/pricing.js';
-import { ATTRIBUTION_CODE, REPO } from '../src/attribution.js';
+import { ATTRIBUTION_CODE, taggedWalletClient } from '../src/attribution.js';
 import { registerCalldata } from '../scripts/register-agent.js';
 import { makePayFetch } from '../scripts/pay.js';
 
@@ -85,7 +88,27 @@ describe('payment gate', () => {
 });
 
 describe('attribution', () => {
-  it('code is derived from the repo slug', () => expect(ATTRIBUTION_CODE).toBe(codeFromRepo(REPO)));
+  it('uses the code issued at hackathon enrollment', () => expect(ATTRIBUTION_CODE).toBe('celo_85d42ed6ebcf'));
+  it('wallet client tags every tx exactly once', async () => {
+    const sent = [];
+    const transport = custom({ request: async ({ method, params }) => {
+      if (method === 'eth_sendRawTransaction') { sent.push(params[0]); return '0x' + '11'.repeat(32); }
+      if (method === 'eth_chainId') return '0xa4ec';
+      throw new Error('unexpected ' + method);
+    } });
+    const w = taggedWalletClient({ account: privateKeyToAccount(generatePrivateKey()), chain: celo, transport });
+    const fields = { nonce: 0, gas: 100000n, maxFeePerGas: 1n, maxPriorityFeePerGas: 1n, chainId: 42220 };
+    await w.sendTransaction({ to: PAY_TO, data: '0x1234', ...fields });
+    await w.sendTransaction({ to: PAY_TO, data: registerCalldata('https://example.com/a.json'), ...fields }); // already tagged: no double tag
+    for (const raw of sent) {
+      const input = parseTransaction(raw).data;
+      expect(fromDataSuffix(input)).toEqual({ codes: [ATTRIBUTION_CODE], schemaId: 0 });
+      expect(input.split('80218021802180218021802180218021').length - 1).toBe(1);
+    }
+  });
+  it('402 routes declare the builder-code app code', () => {
+    for (const r of Object.values(x402Routes(PAY_TO))) expect(r.extensions['builder-code'].info).toEqual({ a: ATTRIBUTION_CODE });
+  });
   it('ERC-8004 register calldata carries the ERC-8021 tag', () => {
     const tag = fromDataSuffix(registerCalldata('https://example.com/agent.json'));
     expect(tag.codes).toContain(ATTRIBUTION_CODE);
