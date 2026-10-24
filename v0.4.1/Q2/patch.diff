@@ -1,0 +1,383 @@
+diff --git a/qualifier/Q2/paid-route.ts b/qualifier/Q2/paid-route.ts
+new file mode 100644
+--- /dev/null
++++ b/qualifier/Q2/paid-route.ts
+@@ -0,0 +1,154 @@
++import { Buffer } from "buffer";
++
++/**
++ * Configuration for paid route.
++ */
++export interface PaidRouteConfig {
++  /** Decimal string price in USDC (e.g., "0.50") */
++  price: string;
++  /** 0x address (40 hex chars) */
++  payTo: string;
++  /** Network name, e.g., "base" or "base-sepolia" */
++  network: string;
++  /** HTTPS URL of the facilitator */
++  facilitator: string;
++}
++
++/**
++ * Create a handler that enforces the x402 contract.
++ */
++export function createPaidRoute({ price, payTo, network, facilitator }: PaidRouteConfig) {
++  // Validate configuration at creation time.
++  if (!/^[0-9]+(\.[0-9]+)?$/.test(price) || Number(price) <= 0) {
++    throw new Error("Invalid price");
++  }
++  if (!/^0x[0-9a-fA-F]{40}$/.test(payTo)) {
++    throw new Error("Invalid payTo address");
++  }
++  if (!["base", "base-sepolia"].includes(network)) {
++    throw new Error("Invalid network");
++  }
++  try {
++    const u = new URL(facilitator);
++    if (u.protocol !== "https:") throw new Error();
++  } catch {
++    throw new Error("Invalid facilitator URL");
++  }
++
++  // Helper to convert price to base units (USDC has 6 decimals).
++  const priceBaseUnits = (() => {
++    const [wholePart = "0", fracPart = ""] = price.split('.');
++    const whole = BigInt(wholePart);
++    const fracPadded = (fracPart + "000000").slice(0, 6); // pad or trim to 6
++    const fraction = BigInt(fracPadded);
++    return (whole * 1_000_000n) + fraction;
++  })().toString();
++
++  // Map network to USDC contract address.
++  const usdcContractByNetwork: Record<string, string> = {
++    base: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
++    "base-sepolia": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
++  };
++
++  const assetAddress = usdcContractByNetwork[network];
++
++  // Build the payment requirements object.
++  const buildRequirements = (request: Request) => ({
++    scheme: "exact",
++    network,
++    maxAmountRequired: priceBaseUnits,
++    resource: request.url,
++    description: "Payment required",
++    mimeType: "application/json",
++    payTo,
++    maxTimeoutSeconds: 60,
++    asset: assetAddress,
++    extra: { name: "USD Coin", version: "2" },
++  });
++
++  const make402 = (reqs: any, errMsg: string) => {
++    const body = JSON.stringify({
++      x402Version: 1,
++      error: errMsg,
++      accepts: [reqs],
++    });
++    return new Response(body, {
++      status: 402,
++      headers: { "Content-Type": "application/json" },
++    });
++  };
++
++  const make502 = () => new Response(null, { status: 502 });
++
++  return async (request: Request): Promise<Response> => {
++    const paymentRequirements = buildRequirements(request);
++    const xPaymentHeader = request.headers.get("X-PAYMENT");
++    if (!xPaymentHeader) {
++      return make402(paymentRequirements, "X-PAYMENT header is required");
++    }
++    let payload: any;
++    try {
++      const decoded = Buffer.from(xPaymentHeader, "base64").toString("utf-8");
++      payload = JSON.parse(decoded);
++    } catch {
++      return make402(paymentRequirements, "Invalid X-PAYMENT header");
++    }
++
++    const bodyObj = {
++      x402Version: 1,
++      paymentPayload: payload,
++      paymentRequirements,
++    };
++
++    // Verify step
++    let verifyResp: Response;
++    try {
++      verifyResp = await fetch(`${facilitator}/verify`, {
++        method: "POST",
++        headers: { "Content-Type": "application/json" },
++        body: JSON.stringify(bodyObj),
++      });
++    } catch {
++      return make502();
++    }
++    if (!verifyResp.ok) return make502();
++    const verifyData = await verifyResp.json();
++    if (!verifyData.isValid) {
++      const reason = verifyData.invalidReason ?? "Invalid payment";
++      return make402(paymentRequirements, reason);
++    }
++
++    // Settle step
++    let settleResp: Response;
++    try {
++      settleResp = await fetch(`${facilitator}/settle`, {
++        method: "POST",
++        headers: { "Content-Type": "application/json" },
++        body: JSON.stringify(bodyObj),
++      });
++    } catch {
++      return make502();
++    }
++    if (!settleResp.ok) return make502();
++    const settleData = await settleResp.json();
++    if (!settleData.success) {
++      return make402(paymentRequirements, "Settlement failed");
++    }
++
++    const paymentResponse = {
++      success: true,
++      transaction: settleData.transaction,
++      network: settleData.network,
++      payer: settleData.payer,
++    };
++    const headerValue = Buffer.from(JSON.stringify(paymentResponse)).toString("base64");
++    const responseBody = JSON.stringify({}); // empty resource payload
++    return new Response(responseBody, {
++      status: 200,
++      headers: {
++        "Content-Type": "application/json",
++        "X-PAYMENT-RESPONSE": headerValue,
++      },
++    });
++  };
++}
+diff --git a/qualifier/Q2/paid-route.test.ts b/qualifier/Q2/paid-route.test.ts
+new file mode 100644
+--- /dev/null
++++ b/qualifier/Q2/paid-route.test.ts
+@@ -0,0 +1,219 @@
++import test from 'node:test';
++import assert from 'node:assert/strict';
++import { createPaidRoute, PaidRouteConfig } from './paid-route.js';
++
++// Helper to create a Request with optional X-PAYMENT header
++function makeRequest(url: string, xPayment?: string): Request {
++  const headers = new Headers();
++  if (xPayment !== undefined) headers.set('X-PAYMENT', xPayment);
++  return new Request(url, { method: 'GET', headers });
++}
++
++// Mock fetch implementation that can be configured per test
++let fetchMock: (input: RequestInfo, init?: RequestInit) => Promise<Response>;
++
++// Replace global fetch before each test and restore after
++test.beforeEach(() => {
++  // @ts-ignore
++  global.fetch = (input: RequestInfo, init?: RequestInit) => fetchMock(input, init);
++});
++
++test.afterEach(() => {
++  // @ts-ignore
++  delete global.fetch;
++});
++
++// A1: Invalid price configuration throws
++test('A1 - invalid price throws', () => {
++  const badConfigs: PaidRouteConfig[] = [
++    { price: '0', payTo: '0x' + 'a'.repeat(40), network: 'base', facilitator: 'https://example.com' },
++    { price: '-1', payTo: '0x' + 'a'.repeat(40), network: 'base', facilitator: 'https://example.com' },
++    { price: 'abc', payTo: '0x' + 'a'.repeat(40), network: 'base', facilitator: 'https://example.com' },
++    { price: '01.00', payTo: '0x' + 'a'.repeat(40), network: 'base', facilitator: 'https://example.com' },
++  ];
++  for (const cfg of badConfigs) {
++    assert.throws(() => createPaidRoute(cfg), /Invalid price/);
++  }
++});
++
++// A2: Invalid payTo configuration throws
++test('A2 - invalid payTo throws', () => {
++  const cfg: PaidRouteConfig = { price: '0.50', payTo: '0x123', network: 'base', facilitator: 'https://example.com' };
++  assert.throws(() => createPaidRoute(cfg), /Invalid payTo/);
++});
++
++// A3: Invalid network configuration throws
++test('A3 - invalid network throws', () => {
++  const cfg: PaidRouteConfig = { price: '0.50', payTo: '0x' + 'b'.repeat(40), network: 'unknown', facilitator: 'https://example.com' };
++  assert.throws(() => createPaidRoute(cfg), /Invalid network/);
++});
++
++// A4: Invalid facilitator URL throws
++test('A4 - invalid facilitator URL throws', () => {
++  const cfg: PaidRouteConfig = { price: '0.50', payTo: '0x' + 'c'.repeat(40), network: 'base', facilitator: 'http://notsecure.com' };
++  assert.throws(() => createPaidRoute(cfg), /Invalid facilitator URL/);
++});
++
++// A5: Missing X-PAYMENT header returns 402 with correct error
++test('A5 - missing X-PAYMENT header returns 402', async () => {
++  const cfg: PaidRouteConfig = { price: '0.50', payTo: '0x' + 'd'.repeat(40), network: 'base', facilitator: 'https://facilitator.com' };
++  const handler = createPaidRoute(cfg);
++  const req = makeRequest('https://service.com/resource');
++  const resp = await handler(req);
++  assert.equal(resp.status, 402);
++  const body = await resp.json();
++  assert.equal(body.x402Version, 1);
++  assert.equal(body.error, 'X-PAYMENT header is required');
++  assert.ok(Array.isArray(body.accepts));
++  const reqs = body.accepts[0];
++  assert.equal(reqs.maxAmountRequired, '500000'); // 0.50 USDC => 500000 base units
++});
++
++// A6: Invalid base64 X-PAYMENT header returns 402
++test('A6 - invalid base64 X-PAYMENT header returns 402', async () => {
++  const cfg: PaidRouteConfig = { price: '1.00', payTo: '0x' + 'e'.repeat(40), network: 'base', facilitator: 'https://facilitator.com' };
++  const handler = createPaidRoute(cfg);
++  const req = makeRequest('https://service.com/res', '!!!notbase64!!!');
++  const resp = await handler(req);
++  assert.equal(resp.status, 402);
++  const body = await resp.json();
++  assert.equal(body.error, 'Invalid X-PAYMENT header');
++});
++
++// A7: Invalid JSON after base64 returns 402
++test('A7 - invalid JSON in X-PAYMENT returns 402', async () => {
++  const cfg: PaidRouteConfig = { price: '2.00', payTo: '0x' + 'f'.repeat(40), network: 'base', facilitator: 'https://facilitator.com' };
++  const handler = createPaidRoute(cfg);
++  const badJson = Buffer.from('not a json').toString('base64');
++  const req = makeRequest('https://service.com/res', badJson);
++  const resp = await handler(req);
++  assert.equal(resp.status, 402);
++  const body = await resp.json();
++  assert.equal(body.error, 'Invalid X-PAYMENT header');
++});
++
++// A8: Verify step network error returns 502
++test('A8 - verify fetch throws returns 502', async () => {
++  fetchMock = async () => { throw new Error('network'); };
++  const cfg: PaidRouteConfig = { price: '0.10', payTo: '0x' + '1'.repeat(40), network: 'base', facilitator: 'https://facilitator.com' };
++  const handler = createPaidRoute(cfg);
++  const payload = Buffer.from(JSON.stringify({ foo: 'bar' })).toString('base64');
++  const req = makeRequest('https://service.com', payload);
++  const resp = await handler(req);
++  assert.equal(resp.status, 502);
++});
++
++// A9: Verify step non-OK response returns 502
++test('A9 - verify non‑OK response returns 502', async () => {
++  fetchMock = async (url) => new Response(null, { status: 500 });
++  const cfg: PaidRouteConfig = { price: '0.20', payTo: '0x' + '2'.repeat(40), network: 'base', facilitator: 'https://facilitator.com' };
++  const handler = createPaidRoute(cfg);
++  const payload = Buffer.from(JSON.stringify({ foo: 'bar' })).toString('base64');
++  const req = makeRequest('https://service.com', payload);
++  const resp = await handler(req);
++  assert.equal(resp.status, 502);
++});
++
++// A10: Verify returns isValid false leads to 402 with reason
++test('A10 - verify invalid payment returns 402 with reason', async () => {
++  fetchMock = async (url) => {
++    if (url.toString().endsWith('/verify')) {
++      return new Response(JSON.stringify({ isValid: false, invalidReason: 'Bad payment' }), { status: 200 });
++    }
++    // settle should not be called
++    assert.fail('settle should not be called');
++    return new Response(null);
++  };
++  const cfg: PaidRouteConfig = { price: '0.30', payTo: '0x' + '3'.repeat(40), network: 'base', facilitator: 'https://facilitator.com' };
++  const handler = createPaidRoute(cfg);
++  const payload = Buffer.from(JSON.stringify({ foo: 'bar' })).toString('base64');
++  const req = makeRequest('https://service.com', payload);
++  const resp = await handler(req);
++  assert.equal(resp.status, 402);
++  const body = await resp.json();
++  assert.equal(body.error, 'Bad payment');
++});
++
++// A11: Settle step network error returns 502
++test('A11 - settle fetch throws returns 502', async () => {
++  let callCount = 0;
++  fetchMock = async (url) => {
++    if (url.toString().endsWith('/verify')) {
++      callCount++;
++      return new Response(JSON.stringify({ isValid: true }), { status: 200 });
++    }
++    // settle throws
++    callCount++;
++    throw new Error('network');
++  };
++  const cfg: PaidRouteConfig = { price: '0.40', payTo: '0x' + '4'.repeat(40), network: 'base', facilitator: 'https://facilitator.com' };
++  const handler = createPaidRoute(cfg);
++  const payload = Buffer.from(JSON.stringify({ foo: 'bar' })).toString('base64');
++  const req = makeRequest('https://service.com', payload);
++  const resp = await handler(req);
++  assert.equal(resp.status, 502);
++  assert.equal(callCount, 2);
++});
++
++// A12: Settle step non-OK response returns 502
++test('A12 - settle non‑OK response returns 502', async () => {
++  fetchMock = async (url) => {
++    if (url.toString().endsWith('/verify')) {
++      return new Response(JSON.stringify({ isValid: true }), { status: 200 });
++    }
++    return new Response(null, { status: 504 });
++  };
++  const cfg: PaidRouteConfig = { price: '0.50', payTo: '0x' + '5'.repeat(40), network: 'base', facilitator: 'https://facilitator.com' };
++  const handler = createPaidRoute(cfg);
++  const payload = Buffer.from(JSON.stringify({ foo: 'bar' })).toString('base64');
++  const req = makeRequest('https://service.com', payload);
++  const resp = await handler(req);
++  assert.equal(resp.status, 502);
++});
++
++// A13: Settlement failure returns 402
++test('A13 - settlement failure returns 402', async () => {
++  fetchMock = async (url) => {
++    if (url.toString().endsWith('/verify')) {
++      return new Response(JSON.stringify({ isValid: true }), { status: 200 });
++    }
++    // settle returns success false
++    return new Response(JSON.stringify({ success: false }), { status: 200 });
++  };
++  const cfg: PaidRouteConfig = { price: '0.60', payTo: '0x' + '6'.repeat(40), network: 'base', facilitator: 'https://facilitator.com' };
++  const handler = createPaidRoute(cfg);
++  const payload = Buffer.from(JSON.stringify({ foo: 'bar' })).toString('base64');
++  const req = makeRequest('https://service.com', payload);
++  const resp = await handler(req);
++  assert.equal(resp.status, 402);
++  const body = await resp.json();
++  assert.equal(body.error, 'Settlement failed');
++});
++
++// A14: Successful payment flow returns 200 with X-PAYMENT-RESPONSE header
++test('A14 - success flow returns 200 with payment response', async () => {
++  const settleData = { success: true, transaction: '0xabc', network: 'base', payer: '0xuser' };
++  fetchMock = async (url) => {
++    if (url.toString().endsWith('/verify')) {
++      return new Response(JSON.stringify({ isValid: true }), { status: 200 });
++    }
++    if (url.toString().endsWith('/settle')) {
++      return new Response(JSON.stringify(settleData), { status: 200 });
++    }
++    assert.fail('unexpected URL');
++    return new Response(null);
++  };
++  const cfg: PaidRouteConfig = { price: '0.70', payTo: '0x' + '7'.repeat(40), network: 'base', facilitator: 'https://facilitator.com' };
++  const handler = createPaidRoute(cfg);
++  const payload = Buffer.from(JSON.stringify({ foo: 'bar' })).toString('base64');
++  const req = makeRequest('https://service.com/ok', payload);
++  const resp = await handler(req);
++  assert.equal(resp.status, 200);
++  const header = resp.headers.get('X-PAYMENT-RESPONSE');
++  assert.ok(header);
++  const decoded = Buffer.from(header, 'base64').toString('utf-8');
++  const parsed = JSON.parse(decoded);
++  assert.deepEqual(parsed, { success: true, transaction: '0xabc', network: 'base', payer: '0xuser' });
++  const body = await resp.json();
++  assert.deepEqual(body, {});
++});

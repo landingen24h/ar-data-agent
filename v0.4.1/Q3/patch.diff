@@ -1,0 +1,180 @@
+diff --git a/qualifier/Q3/lax-offer.json b/qualifier/Q3/lax-offer.json
+new file mode 100644
+--- /dev/null
++++ b/qualifier/Q3/lax-offer.json
+@@ -0,0 +1,55 @@
++{
++  "name": "Landing en 24h coding agent",
++  "description": "A coding agent that can patch code according to a specification within 24 hours, returning the patch, tests and notes.",
++  "capabilities": [
++    {
++      "skill_id": "code.patch",
++      "description": "Patch code based on the provided specification markdown and file map.",
++      "pricing": {
++        "model": "per_call",
++        "amount": "0.50",
++        "currency": "USDC",
++        "rail": "x402"
++      },
++      "input_schema": {
++        "type": "object",
++        "properties": {
++          "spec_md": { "type": "string" },
++          "files": {
++            "type": "object",
++            "additionalProperties": { "type": "string" }
++          }
++        },
++        "required": ["spec_md", "files"],
++        "additionalProperties": false
++      },
++      "output_schema": {
++        "type": "object",
++        "properties": {
++          "patch": { "type": "string" },
++          "tests": {
++            "type": "array",
++            "items": { "type": "string" }
++          },
++          "notes": { "type": "string" },
++          "refused": { "type": "boolean" },
++          "reason": { "type": "string" }
++        },
++        "required": ["patch", "tests", "notes", "refused", "reason"],
++        "additionalProperties": false
++      }
++    }
++  ],
++  "constitutional_constraints": [
++    "Solidarity Oath",
++    "Renewal Mandate",
++    "Treasury Equilibrium",
++    "Harm Shield",
++    "Transparency Covenant"
++  ],
++  "endpoint": "https://landingen24h.com/patch",
++  "lax_version": "1.0",
++  "category": "coding",
++  "agent_did": "did:pkh:eip155:8453:0xb6d00A148AD63Fd9CCDd484B687c6012bA1561E1",
++  "payment_rails": ["x402", "usdc-base"]
++}
+diff --git a/qualifier/Q3/lax-offer.test.ts b/qualifier/Q3/lax-offer.test.ts
+new file mode 100644
+--- /dev/null
++++ b/qualifier/Q3/lax-offer.test.ts
+@@ -0,0 +1,115 @@
++import { test } from 'node:test';
++import assert from 'node:assert/strict';
++import { readFileSync } from 'node:fs';
++import { resolve } from 'node:path';
++
++test('A1', () => {
++  const filePath = resolve(import.meta.dirname, './lax-offer.json');
++  const raw = readFileSync(filePath, 'utf8');
++  let offer: any;
++  try {
++    offer = JSON.parse(raw);
++  } catch (e) {
++    assert.fail('Invalid JSON format');
++  }
++
++  // Required fields existence
++  const requiredRoot = ['name', 'description', 'capabilities', 'constitutional_constraints'];
++  const hasEndpoint = 'endpoint' in offer || 'pact_endpoint' in offer;
++  requiredRoot.forEach((field) => {
++    assert.ok(field in offer, `${field} is required`);
++  });
++  assert.ok(hasEndpoint, 'Either endpoint or pact_endpoint is required');
++
++  // name length 3-80
++  assert.strictEqual(typeof offer.name, 'string', 'name must be string');
++  assert.ok(offer.name.length >= 3 && offer.name.length <= 80, 'name length out of bounds');
++
++  // description length 20-600
++  assert.strictEqual(typeof offer.description, 'string', 'description must be string');
++  assert.ok(offer.description.length >= 20 && offer.description.length <= 600, 'description length out of bounds');
++
++  // capabilities array length 1-10
++  assert.ok(Array.isArray(offer.capabilities), 'capabilities must be array');
++  assert.ok(offer.capabilities.length >= 1 && offer.capabilities.length <= 10, 'capabilities length out of bounds');
++
++  // constitutional_constraints exactly the five required strings, no extra
++  const expectedConstraints = [
++    'Solidarity Oath',
++    'Renewal Mandate',
++    'Treasury Equilibrium',
++    'Harm Shield',
++    'Transparency Covenant',
++  ];
++  assert.ok(Array.isArray(offer.constitutional_constraints), 'constitutional_constraints must be array');
++  assert.deepStrictEqual(
++    offer.constitutional_constraints.slice().sort(),
++    expectedConstraints.slice().sort(),
++    'constitutional_constraints must contain exactly the five required strings'
++  );
++
++  // endpoint or pact_endpoint must be https URL
++  const urlField = offer.endpoint ?? offer.pact_endpoint;
++  assert.ok(typeof urlField === 'string', 'endpoint/pact_endpoint must be string');
++  assert.ok(/^https:\/\/.test(urlField), 'endpoint/pact_endpoint must start with https://');
++
++  // Optional fields validation if present
++  if ('lax_version' in offer) {
++    assert.strictEqual(offer.lax_version, '1.0', 'lax_version must be "1.0"');
++  }
++  if ('category' in offer) {
++    assert.strictEqual(typeof offer.category, 'string', 'category must be string');
++    assert.ok(offer.category.length >= 2 && offer.category.length <= 40, 'category length out of bounds');
++  }
++  if ('agent_did' in offer) {
++    const didPattern = /^did:[a-z0-9]+:[a-z0-9]+:[0-9]+:[0-9a-fA-F]{40}$/;
++    assert.ok(didPattern.test(offer.agent_did), 'agent_did format invalid');
++  }
++  if ('payment_rails' in offer) {
++    assert.ok(Array.isArray(offer.payment_rails), 'payment_rails must be array');
++    const allowed = new Set(['x402', 'usdc', 'usdc-base']);
++    offer.payment_rails.forEach((rail: any) => {
++      assert.ok(allowed.has(rail), `payment_rail ${rail} not allowed`);
++    });
++  }
++
++  // Validate each capability object
++  offer.capabilities.forEach((cap: any, idx: number) => {
++    const capPath = `capabilities[${idx}]`;
++    // required fields
++    ['skill_id', 'description', 'pricing', 'input_schema', 'output_schema'].forEach((field) => {
++      assert.ok(field in cap, `${capPath} missing ${field}`);
++    });
++    assert.strictEqual(typeof cap.skill_id, 'string', `${capPath}.skill_id must be string`);
++    assert.strictEqual(typeof cap.description, 'string', `${capPath}.description must be string`);
++    // pricing validation
++    const pricing = cap.pricing;
++    assert.ok(pricing && typeof pricing === 'object', `${capPath}.pricing must be object`);
++    const pricingFields = ['model', 'amount', 'currency', 'rail'];
++    pricingFields.forEach((f) => {
++      assert.ok(f in pricing, `${capPath}.pricing missing ${f}`);
++    });
++    const allowedModels = new Set(['per_call', 'per_minute', 'flat', 'free']);
++    assert.ok(allowedModels.has(pricing.model), `${capPath}.pricing.model invalid`);
++    // amount must be decimal string with at most two decimal places for USDC (6 decimals allowed but we just check format)
++    assert.ok(/^\d+(\.\d+)?$/.test(pricing.amount), `${capPath}.pricing.amount must be positive decimal string`);
++    assert.strictEqual(pricing.currency, 'USDC', `${capPath}.pricing.currency must be USDC`);
++    assert.strictEqual(pricing.rail, 'x402', `${capPath}.pricing.rail must be x402`);
++    // input_schema and output_schema must be JSON Schema objects (basic check for type property)
++    ['input_schema', 'output_schema'].forEach((schemaField) => {
++      const schema = cap[schemaField];
++      assert.ok(schema && typeof schema === 'object', `${capPath}.${schemaField} must be object`);
++      assert.ok('type' in schema, `${capPath}.${schemaField} missing type`);
++    });
++  });
++
++  // Ensure no extra top-level fields beyond the allowed set
++  const allowedTopFields = new Set([
++    'name', 'description', 'capabilities', 'constitutional_constraints',
++    'endpoint', 'pact_endpoint', 'lax_version', 'category', 'agent_did',
++    'erc8004_identity', 'payment_rails'
++  ]);
++  Object.keys(offer).forEach((key) => {
++    assert.ok(allowedTopFields.has(key), `Unexpected top‑level field ${key}`);
++  });
++});

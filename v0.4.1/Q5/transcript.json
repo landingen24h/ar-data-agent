@@ -1,0 +1,23 @@
+{
+  "endpoint": "https://landingen24h.com/patch",
+  "at": "2026-10-24T05:10:52Z",
+  "request": {
+    "spec_md": "Q5: qualifier/Q5/split.test.ts, tests for this function, copied unchanged to qualifier/Q5/split.ts: export function splitFees(total: bigint, shares: number[]): bigint[] { if (total < 0n) throw new Error('negative total'); if (!shares.length || shares.some((s) => !Number.isInteger(s) || s < 0)) throw new Error('bad shares'); if (shares.reduce((a, b) => a + b, 0) !== 100) throw new Error('shares must sum to 100'); const out = shares.map((s) => (total * BigInt(s)) / 100n); out[0] += total - out.reduce((a, b) => a + b, 0n); return out; } Kognai runs your tests against this function and against copies with planted bugs: they must pass on the original and fail on every planted bug.\n\nHouse rules: TypeScript, tests with node:test run by tsx, each test named after the acceptance item it proves (A1, A2...), tests must fail without the change, no secrets, Latin digits only, no long dashes in any text people see.\n",
+    "files": {
+      "qualifier/Q5/split.ts": "export function splitFees(total: bigint, shares: number[]): bigint[] { if (total < 0n) throw new Error('negative total'); if (!shares.length || shares.some((s) => !Number.isInteger(s) || s < 0)) throw new Error('bad shares'); if (shares.reduce((a, b) => a + b, 0) !== 100) throw new Error('shares must sum to 100'); const out = shares.map((s) => (total * BigInt(s)) / 100n); out[0] += total - out.reduce((a, b) => a + b, 0n); return out; }\n"
+    }
+  },
+  "status": 200,
+  "response": {
+    "patch": "diff --git a/qualifier/Q5/split.test.ts b/qualifier/Q5/split.test.ts\nnew file mode 100644\n--- /dev/null\n+++ b/qualifier/Q5/split.test.ts\n@@ -0,0 +1,71 @@\n+import { test } from 'node:test';\n+import assert from 'node:assert/strict';\n+import { splitFees } from './split.js';\n+\n+// A1: Throws on negative total\n+test('A1', () => {\n+  assert.throws(() => splitFees(-1n, [100]), /negative total/);\n+});\n+\n+// A2: Throws on bad shares (empty, non-integer, negative)\n+test('A2', () => {\n+  assert.throws(() => splitFees(100n, []), /bad shares/);\n+  assert.throws(() => splitFees(100n, [50.5, 49.5]), /bad shares/);\n+  assert.throws(() => splitFees(100n, [50, -50]), /bad shares/);\n+});\n+\n+// A3: Throws when shares do not sum to 100\n+test('A3', () => {\n+  assert.throws(() => splitFees(100n, [60, 30]), /shares must sum to 100/);\n+});\n+\n+// A4: Correct distribution without remainder\n+test('A4', () => {\n+  const total = 1000n;\n+  const shares = [50, 30, 20];\n+  const result = splitFees(total, shares);\n+  assert.deepEqual(result, [500n, 300n, 200n]);\n+  const sum = result.reduce((a, b) => a + b, 0n);\n+  assert.equal(sum, total);\n+});\n+\n+// A5: Distribution with remainder added to first share\n+test('A5', () => {\n+  const total = 1001n;\n+  const shares = [33, 33, 34];\n+  const result = splitFees(total, shares);\n+  assert.deepEqual(result, [331n, 330n, 340n]);\n+  const sum = result.reduce((a, b) => a + b, 0n);\n+  assert.equal(sum, total);\n+});\n+\n+// A6: Zero total yields zero allocations\n+test('A6', () => {\n+  const total = 0n;\n+  const shares = [0, 0, 100];\n+  const result = splitFees(total, shares);\n+  assert.deepEqual(result, [0n, 0n, 0n]);\n+});\n+\n+// A7: Handles very large totals correctly\n+test('A7', () => {\n+  const total = 2n ** 100n; // large bigint\n+  const shares = [70, 30];\n+  const result = splitFees(total, shares);\n+  const out0 = (total * 70n) / 100n;\n+  const out1 = (total * 30n) / 100n;\n+  const remainder = total - (out0 + out1);\n+  const expected = [out0 + remainder, out1];\n+  assert.deepEqual(result, expected);\n+  const sum = result.reduce((a, b) => a + b, 0n);\n+  assert.equal(sum, total);\n+});\n+\n+// A8: Function is idempotent for same inputs\n+test('A8', () => {\n+  const total = 12345n;\n+  const shares = [40, 60];\n+  const first = splitFees(total, shares);\n+  const second = splitFees(total, shares);\n+  assert.deepEqual(first, second);\n+});\n",
+    "tests": [
+      "qualifier/Q5/split.test.ts"
+    ],
+    "notes": "Added comprehensive tests covering error handling, correct fee split, remainder handling, zero and large totals, and idempotency.",
+    "model": "@cf/openai/gpt-oss-120b",
+    "agent": "landingen24h-coding-agent 0.4.1",
+    "owner_run": true,
+    "ms": 44337,
+    "note": "Operator run (qualifier transcript), same code path as paid calls, no payment taken."
+  }
+}

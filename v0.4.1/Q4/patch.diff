@@ -1,0 +1,121 @@
+diff --git a/qualifier/Q4/ledger.ts b/qualifier/Q4/ledger.ts
+new file mode 100644
+--- /dev/null
++++ b/qualifier/Q4/ledger.ts
+@@ -0,0 +1,40 @@
++export function createLedger({ cap }: { cap: string }) {
++  if (!/^[1-9][0-9]*$/.test(cap)) {
++    throw new Error('Invalid cap');
++  }
++  const capBig = BigInt(cap);
++  const balances = new Map<string, bigint>();
++  const keyMap = new Map<string, { account: string; amount: string; id: string }>();
++  let nextId = 0;
++
++  function post({ key, account, amount }: { key: string; account: string; amount: string }) {
++    if (!/^[1-9][0-9]*$/.test(amount)) {
++      throw new Error('Invalid amount');
++    }
++    if (keyMap.has(key)) {
++      const stored = keyMap.get(key)!;
++      if (stored.account === account && stored.amount === amount) {
++        return { id: stored.id, duplicate: true };
++      }
++      throw new Error('Key payload mismatch');
++    }
++
++    const amountBig = BigInt(amount);
++    const current = balances.get(account) ?? 0n;
++    const newBalance = current + amountBig;
++    if (newBalance > capBig) {
++      throw new Error('Cap exceeded');
++    }
++
++    const id = (nextId++).toString();
++    balances.set(account, newBalance);
++    keyMap.set(key, { account, amount, id });
++    return { id, duplicate: false };
++  }
++
++  function balance(account: string): string {
++    return (balances.get(account) ?? 0n).toString();
++  }
++
++  return { post, balance };
++}
+diff --git a/qualifier/Q4/ledger.test.ts b/qualifier/Q4/ledger.test.ts
+new file mode 100644
+--- /dev/null
++++ b/qualifier/Q4/ledger.test.ts
+@@ -0,0 +1,71 @@
++import test from 'node:test';
++import assert from 'node:assert/strict';
++import { createLedger } from './ledger.js';
++
++test('A1: post new key updates balance and returns non duplicate', () => {
++  const ledger = createLedger({ cap: '100' });
++  const res = ledger.post({ key: 'k1', account: 'a1', amount: '30' });
++  assert.equal(res.duplicate, false);
++  assert.equal(res.id, '0');
++  assert.equal(ledger.balance('a1'), '30');
++});
++
++test('A2: posting same key same payload returns duplicate true and same id, balance unchanged', () => {
++  const ledger = createLedger({ cap: '100' });
++  const first = ledger.post({ key: 'k1', account: 'a1', amount: '30' });
++  const second = ledger.post({ key: 'k1', account: 'a1', amount: '30' });
++  assert.equal(second.duplicate, true);
++  assert.equal(second.id, first.id);
++  assert.equal(ledger.balance('a1'), '30');
++});
++
++test('A3: posting same key with different payload throws', () => {
++  const ledger = createLedger({ cap: '100' });
++  ledger.post({ key: 'k1', account: 'a1', amount: '30' });
++  assert.throws(() => {
++    ledger.post({ key: 'k1', account: 'a1', amount: '40' });
++  });
++});
++
++test('A4: posting that would exceed cap throws and balance unchanged', () => {
++  const ledger = createLedger({ cap: '50' });
++  ledger.post({ key: 'k1', account: 'a1', amount: '30' });
++  assert.throws(() => {
++    ledger.post({ key: 'k2', account: 'a1', amount: '25' });
++  });
++  assert.equal(ledger.balance('a1'), '30');
++});
++
++test('A5: balance of unknown account is zero', () => {
++  const ledger = createLedger({ cap: '100' });
++  assert.equal(ledger.balance('unknown'), '0');
++});
++
++test('A6: invalid cap at creation throws', () => {
++  assert.throws(() => {
++    createLedger({ cap: '0' });
++  });
++  assert.throws(() => {
++    createLedger({ cap: '-5' });
++  });
++  assert.throws(() => {
++    // @ts-ignore
++    createLedger({ cap: '01' });
++  });
++});
++
++test('A7: invalid amount throws', () => {
++  const ledger = createLedger({ cap: '100' });
++  assert.throws(() => {
++    // @ts-ignore
++    ledger.post({ key: 'k1', account: 'a1', amount: '0' });
++  });
++  assert.throws(() => {
++    // @ts-ignore
++    ledger.post({ key: 'k2', account: 'a1', amount: '-10' });
++  });
++  assert.throws(() => {
++    // @ts-ignore
++    ledger.post({ key: 'k3', account: 'a1', amount: '01' });
++  });
++});

@@ -1,0 +1,116 @@
+diff --git a/qualifier/Q1/plain-amount.ts b/qualifier/Q1/plain-amount.ts
+new file mode 100644
+--- /dev/null
++++ b/qualifier/Q1/plain-amount.ts
+@@ -0,0 +1,75 @@
++export function plainAmount(value: string, decimals: number, symbol: string): string {
++  // Validate types
++  if (typeof value !== "string") {
++    throw new Error("value must be a string");
++  }
++  if (typeof decimals !== "number" || !Number.isInteger(decimals) || decimals < 0) {
++    throw new Error("decimals must be a non‑negative integer");
++  }
++  if (typeof symbol !== "string" || symbol.length === 0) {
++    throw new Error("symbol must be a non‑empty string");
++  }
++
++  // Normalize Arabic-Indic and Eastern Arabic-Indic digits to Latin digits
++  const normalizeDigits = (s: string): string =>
++    s.replace(/[\u0660-\u0669\u06F0-\u06F9]/g, (c) => {
++      const code = c.charCodeAt(0);
++      if (code >= 0x660 && code <= 0x669) {
++        // Arabic-Indic
++        return String.fromCharCode(0x30 + (code - 0x660));
++      }
++      if (code >= 0x6f0 && code <= 0x6f9) {
++        // Eastern Arabic-Indic
++        return String.fromCharCode(0x30 + (code - 0x6f0));
++      }
++      return c;
++    });
++
++  const norm = normalizeDigits(value);
++
++  // Validate sign and digits
++  const signMatch = /^(-)?(\d+)$/.exec(norm);
++  if (!signMatch) {
++    throw new Error("value must be an integer string, optional leading minus");
++  }
++  const isNegative = !!signMatch[1];
++  const digits = signMatch[2];
++
++  // Convert to BigInt
++  const absBig = BigInt(digits);
++
++  // Compute divisor 10^decimals
++  const divisor = BigInt(10) ** BigInt(decimals);
++
++  const integerPart = absBig / divisor;
++  const fractionPart = absBig % divisor;
++
++  // Integer part with commas
++  const intStrRaw = integerPart.toString();
++  const intStr = intStrRaw.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
++
++  // Fraction string handling
++  let fractionStr = fractionPart.toString().padStart(decimals, "0");
++
++  // Ensure at least two decimal digits regardless of token decimals
++  if (decimals < 2) {
++    fractionStr = fractionStr.padEnd(2, "0");
++  }
++
++  // Trim trailing zeros beyond the required minimum of two digits
++  while (fractionStr.length > 2 && fractionStr.endsWith("0")) {
++    fractionStr = fractionStr.slice(0, -1);
++  }
++
++  // If decimals is zero, fractionStr will be empty after padding; ensure two zeros
++  if (decimals === 0) {
++    fractionStr = "00";
++  }
++
++  const numberFormatted = `${intStr}.${fractionStr}`;
++
++  if (isNegative && absBig !== BigInt(0)) {
++    return `minus ${numberFormatted} ${symbol}`;
++  }
++  return `${numberFormatted} ${symbol}`;
++}
+diff --git a/qualifier/Q1/plain-amount.test.ts b/qualifier/Q1/plain-amount.test.ts
+new file mode 100644
+--- /dev/null
++++ b/qualifier/Q1/plain-amount.test.ts
+@@ -0,0 +1,31 @@
++import test from "node:test";
++import assert from "node:assert/strict";
++import { plainAmount } from "./plain-amount.js";
++
++test("A1: formats positive value with grouping and trimming", () => {
++  const result = plainAmount("1234567890", 6, "USDC");
++  assert.equal(result, "1,234.56789 USDC");
++});
++
++test("A2: decimals zero pads to two", () => {
++  const result = plainAmount("5", 0, "USDC");
++  assert.equal(result, "5.00 USDC");
++});
++
++test("A3: negative value formatting", () => {
++  const result = plainAmount("-123456", 2, "USDC");
++  assert.equal(result, "minus 1,234.56 USDC");
++});
++
++test("A4: Arabic Indic digits conversion", () => {
++  const result = plainAmount("١٢٣٤٥٦", 2, "USDC");
++  assert.equal(result, "1,234.56 USDC");
++});
++
++test("A5: invalid inputs throw", () => {
++  assert.throws(() => plainAmount("12a34", 2, "USDC"));
++  assert.throws(() => plainAmount("-12-34", 2, "USDC"));
++  assert.throws(() => plainAmount("123", -1, "USDC"));
++  assert.throws(() => plainAmount("123", 2.5, "USDC"));
++  assert.throws(() => plainAmount(123 as any, 2, "USDC"));
++});
