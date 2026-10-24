@@ -80,6 +80,16 @@ client ── GET /ar/dolar + PAYMENT-SIGNATURE ─────────▶ a
 
 PayTo / agent wallet: `0xb6d00A148AD63Fd9CCDd484B687c6012bA1561E1`
 
+### Live on Celo mainnet
+
+- Endpoint: `https://landingen24h.com/celo/` (catalog and prices at `/celo/prices`,
+  registration file at `/celo/.well-known/agent-registration.json`).
+- First end-to-end payment (our own test buyer wallet, holding only wARS and no CELO):
+  `GET /celo/ar/dolar` paid **15 wARS**, settled by the Celo facilitator in
+  [`0xd1cd54e6…e7db`](https://celoscan.io/tx/0xd1cd54e6ff941f12d4d4a6a3caf9cca0a240bce38f6dd2f0fc29c42fb762e7db)
+  (wARS `Transfer` 0x1731…6d72 → PayTo), HTTP 200 with the quotes JSON. This was a self-test,
+  not a customer sale.
+
 ## Use it
 
 ### Pay from a script (agent or developer)
