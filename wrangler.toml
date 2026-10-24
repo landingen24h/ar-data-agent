@@ -1,0 +1,9 @@
+name = "ar-data-agent"
+main = "src/worker.js"
+compatibility_date = "2026-04-01"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+PAY_TO = "0xb6d00A148AD63Fd9CCDd484B687c6012bA1561E1"
+FACILITATOR_URL = "https://api.x402.celo.org"
+# X402_API_KEY is a secret: `wrangler secret put X402_API_KEY`

@@ -1,0 +1,50 @@
+{
+  "name": "ar-data-agent",
+  "version": "0.1.0",
+  "description": "Pay-per-call Argentine data agent priced in wARS on Celo via x402 (dolar, inflacion, feriados, CUIT, CBU).",
+  "scripts": {
+    "start": "node src/node.js",
+    "test": "vitest run",
+    "test:live": "LIVE=1 vitest run",
+    "build:worker": "esbuild src/worker.js --bundle --format=esm --platform=browser --conditions=worker,browser --minify --alias:url=./src/shims/url.js --outfile=dist/worker.js",
+    "pay": "node scripts/pay.js",
+    "register": "node scripts/register-agent.js"
+  },
+  "keywords": [
+    "celo",
+    "x402",
+    "wARS",
+    "ripio",
+    "argentina",
+    "erc-8004",
+    "agents",
+    "stablecoins"
+  ],
+  "author": "Landing en 24h <landingen24h@mail.grokbot.com>",
+  "license": "MIT",
+  "type": "module",
+  "dependencies": {
+    "@celo/attribution-tags": "^0.5.0",
+    "@hono/node-server": "^2.1.5",
+    "@x402/core": "^2.28.0",
+    "@x402/evm": "^2.28.0",
+    "@x402/fetch": "^2.28.0",
+    "@x402/hono": "^2.28.0",
+    "hono": "^4.13.13",
+    "viem": "^2.57.11"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.12"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/landingen24h/ar-data-agent"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "main": "src/app.js"
+}
