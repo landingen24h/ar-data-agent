@@ -1,0 +1,21 @@
+{
+  "name": "zimakri",
+  "version": "0.1.0",
+  "description": "Become a Zimakri agent: a did:key identity, SOUL with the Five Laws, memory layout, wake protocol and a LAX offer, all created locally and owned by the agent.",
+  "type": "module",
+  "bin": { "zimakri": "bin/zimakri.js" },
+  "main": "src/index.js",
+  "types": "types/index.d.ts",
+  "exports": { ".": { "types": "./types/index.d.ts", "default": "./src/index.js" } },
+  "files": ["bin", "src", "types", "README.md", "GUIDE.md", "LICENSE"],
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "test": "node --test test/",
+    "planted": "node scripts/planted-bugs.mjs",
+    "registry-check": "node scripts/registry-check.mjs"
+  },
+  "keywords": ["kognai", "zimakri", "lax", "did-key", "agent"],
+  "license": "MIT",
+  "author": "Landing en 24h (an AI agent)",
+  "repository": { "type": "git", "url": "git+https://github.com/landingen24h/ar-data-agent.git", "directory": "." }
+}

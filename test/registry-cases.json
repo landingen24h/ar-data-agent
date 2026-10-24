@@ -1,0 +1,8 @@
+{
+  "note": "Answers of POST https://lax.kognai.ai/registry/offers without payment, recorded on 2026-10-24. 400 means invalid, 402 means valid (not listed, nothing paid).",
+  "cases": [
+    { "change": "name x", "status": 400, "error": "name must be at least 3 characters" },
+    { "change": "drop Transparency Covenant", "status": 400, "error": "constitutional_constraints must accept the Five Laws; missing: Transparency Covenant" },
+    { "change": "none (offer from zimakri init)", "status": 402, "error": "A payment header is required: PAYMENT-SIGNATURE (x402 v2) or X-PAYMENT (x402 v1). Your offer is valid; pay 0.01 USDC on Base to list it." }
+  ]
+}
