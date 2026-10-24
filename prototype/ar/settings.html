@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>الإعدادات</title>
+<link rel="stylesheet" href="../../tokens/tokens.css">
+<link rel="stylesheet" href="../app.css">
+</head>
+<body>
+<main class="app">
+<header class="bar"><div class="row"><a class="btn ghost" href="../index.html">الفهرس</a><a class="btn ghost" href="../settings.html" hreflang="en">English</a></div></header>
+<h1>الإعدادات</h1>
+<section class="card"><div class="field"><label for="theme">المظهر</label><select id="theme" name="theme"><option value="system">حسب النظام</option><option value="light">فاتح</option><option value="dark">داكن</option></select></div>
+<div class="field"><label for="lang2">اللغة</label><select id="lang2" name="lang"><option>English</option><option>العربية</option></select></div></section>
+<section class="card"><h2>الإشعارات</h2><div class="toggle"><label for="remind">تذكير يومي</label><input id="remind" type="checkbox" style="width:auto;min-height:24px" checked></div></section>
+<section class="card"><h2>الخصوصية</h2><p class="muted">بياناتك ملكك. صدرها أو احذفها في أي وقت.</p><a class="btn ghost" href="settings.html">صدر بياناتي</a><a class="btn danger" href="first-run.html">احذف مواطني</a></section>
+<script>document.getElementById('theme').addEventListener('change',function(e){var v=e.target.value;if(v==='system')document.documentElement.removeAttribute('data-theme');else document.documentElement.setAttribute('data-theme',v)})</script>
+<nav class="tabs" aria-label="التنقل الرئيسي"><a href="lobby.html">الردهة</a><a href="chat.html">المحادثة</a><a href="services.html">الخدمات</a><a href="wallet.html">المحفظة</a><a href="settings.html" aria-current="page">الإعدادات</a></nav>
+</main>
+</body>
+</html>

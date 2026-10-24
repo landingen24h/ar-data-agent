@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Settings</title>
+<link rel="stylesheet" href="../tokens/tokens.css">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<main class="app">
+<header class="bar"><div class="row"><a class="btn ghost" href="index.html">Index</a><a class="btn ghost" href="ar/settings.html" hreflang="ar">العربية</a></div></header>
+<h1>Settings</h1>
+<section class="card"><div class="field"><label for="theme">Theme</label><select id="theme" name="theme"><option value="system">Use system</option><option value="light">Light</option><option value="dark">Dark</option></select></div>
+<div class="field"><label for="lang2">Language</label><select id="lang2" name="lang"><option>English</option><option>Arabic</option></select></div></section>
+<section class="card"><h2>Notifications</h2><div class="toggle"><label for="remind">Daily reminder</label><input id="remind" type="checkbox" style="width:auto;min-height:24px" checked></div></section>
+<section class="card"><h2>Privacy</h2><p class="muted">Your data stays yours. Export or delete it at any time.</p><a class="btn ghost" href="settings.html">Export my data</a><a class="btn danger" href="first-run.html">Delete my citizen</a></section>
+<script>document.getElementById('theme').addEventListener('change',function(e){var v=e.target.value;if(v==='system')document.documentElement.removeAttribute('data-theme');else document.documentElement.setAttribute('data-theme',v)})</script>
+<nav class="tabs" aria-label="Main navigation"><a href="lobby.html">Lobby</a><a href="chat.html">Chat</a><a href="services.html">Services</a><a href="wallet.html">Wallet</a><a href="settings.html" aria-current="page">Settings</a></nav>
+</main>
+</body>
+</html>

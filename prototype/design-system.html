@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Design system</title>
+<link rel="stylesheet" href="../tokens/tokens.css">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<main class="app">
+<header class="bar"><a class="btn ghost" href="index.html">Index</a></header>
+<h1>Design system</h1>
+<p class="muted">Kognai citizen brand: terracotta, charcoal and cream. Every text pair meets 4.5 to 1 in both themes (see test/a1.test.mjs).</p>
+<section class="card"><h2>Colour, light</h2><div class="swatch"><span class="c" style="background:#fbf6ee"></span><code>bg</code> <code>#fbf6ee</code></div><div class="swatch"><span class="c" style="background:#ffffff"></span><code>surface</code> <code>#ffffff</code></div><div class="swatch"><span class="c" style="background:#2b2622"></span><code>text</code> <code>#2b2622</code></div><div class="swatch"><span class="c" style="background:#5e554d"></span><code>text-muted</code> <code>#5e554d</code></div><div class="swatch"><span class="c" style="background:#a3442a"></span><code>primary</code> <code>#a3442a</code></div><div class="swatch"><span class="c" style="background:#ffffff"></span><code>on-primary</code> <code>#ffffff</code></div><div class="swatch"><span class="c" style="background:#d9cfc2"></span><code>border</code> <code>#d9cfc2</code></div><div class="swatch"><span class="c" style="background:#b3261e"></span><code>danger</code> <code>#b3261e</code></div><div class="swatch"><span class="c" style="background:#f3e6d3"></span><code>accent</code> <code>#f3e6d3</code></div></section>
+<section class="card"><h2>Colour, dark</h2><div class="swatch"><span class="c" style="background:#1c1917"></span><code>bg</code> <code>#1c1917</code></div><div class="swatch"><span class="c" style="background:#29231f"></span><code>surface</code> <code>#29231f</code></div><div class="swatch"><span class="c" style="background:#f5eee4"></span><code>text</code> <code>#f5eee4</code></div><div class="swatch"><span class="c" style="background:#c2b6a8"></span><code>text-muted</code> <code>#c2b6a8</code></div><div class="swatch"><span class="c" style="background:#e88a6c"></span><code>primary</code> <code>#e88a6c</code></div><div class="swatch"><span class="c" style="background:#1c1917"></span><code>on-primary</code> <code>#1c1917</code></div><div class="swatch"><span class="c" style="background:#4a403a"></span><code>border</code> <code>#4a403a</code></div><div class="swatch"><span class="c" style="background:#ff8a80"></span><code>danger</code> <code>#ff8a80</code></div><div class="swatch"><span class="c" style="background:#3a2e27"></span><code>accent</code> <code>#3a2e27</code></div></section>
+<section class="card"><h2>Type</h2><p style="font-size:var(--type-size-xl)">Heading 28</p><p style="font-size:var(--type-size-lg)">Title 20</p><p>Body 16</p><p class="muted" style="font-size:var(--type-size-sm)">Caption 14</p></section>
+<section class="card"><h2>Space and radius</h2><p class="muted">Space 4, 8, 12, 16, 24, 32. Radius 6, 12, 20, pill.</p></section>
+<section class="card"><h2>Components</h2>
+<div class="row"><a class="btn" href="design-system.html">Primary</a><a class="btn ghost" href="design-system.html">Secondary</a><a class="btn danger" href="design-system.html">Danger</a></div>
+<div class="field"><label for="demo">Text field</label><input id="demo" placeholder="Placeholder"></div>
+<p class="bubble">Citizen message</p><p class="bubble me">Your message</p>
+<svg class="avatar" role="img" aria-label="Citizen avatar" viewBox="0 0 56 56"><circle cx="28" cy="28" r="28" fill="var(--color-primary)"/><circle cx="28" cy="22" r="9" fill="var(--color-on-primary)"/><path d="M12 46c3-9 10-13 16-13s13 4 16 13" fill="var(--color-on-primary)"/></svg>
+<div class="field"><label for="th">Preview theme</label><select id="th"><option value="light">Light</option><option value="dark">Dark</option></select></div>
+</section>
+<script>document.getElementById('th').addEventListener('change',function(e){document.documentElement.setAttribute('data-theme',e.target.value)})</script>
+</main>
+</body>
+</html>
