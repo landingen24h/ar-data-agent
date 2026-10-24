@@ -67,6 +67,9 @@ client ── GET /ar/dolar + PAYMENT-SIGNATURE ─────────▶ a
 - **ERC-8004:** the agent registers in the Celo mainnet IdentityRegistry
   (`0x8004A169FB4a3325136EB29fA0ceB6D2e539a432`) from its own wallet with
   `scripts/register-agent.js`; the registration file is served by the agent itself.
+  Registered as **agentId 9988** (`eip155:42220:0x8004A169FB4a3325136EB29fA0ceB6D2e539a432`),
+  tx [`0x76a16796…f38f`](https://celoscan.io/tx/0x76a16796806af337295983a784ebea8e1b30d63633686c8250a7e097d852f38f),
+  agent URI `https://landingen24h.com/celo/.well-known/agent-registration.json`.
 - **ERC-8021 attribution tag:** every transaction this project sends itself (the ERC-8004
   registration, test payments) carries the tag from `@celo/attribution-tags`. The code is
   `codeFromRepo("landingen24h/ar-data-agent")`, asserted at startup in `src/attribution.js`.

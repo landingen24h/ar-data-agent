@@ -115,7 +115,7 @@ export function registrationFile(url, agent) {
     type: 'https://eips.ethereum.org/EIPS/eip-8004#registration-v1',
     name: 'AR Data Agent',
     description: 'Pay-per-call Argentine data (USD/ARS quotes, INDEC inflation, national holidays and business days, CUIT and CBU/CVU validation) priced in wARS on Celo through x402. Built by Landing en 24h.',
-    image: 'https://landingen24h.com/favicon.svg',
+    image: 'https://landingen24h.com/favicon.ico',
     services: [{ name: 'web', endpoint: url + '/' }, { name: 'x402', endpoint: url + '/' }],
     x402Support: true,
     active: true,
