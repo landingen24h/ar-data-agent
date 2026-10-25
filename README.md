@@ -15,11 +15,11 @@ Built for the *Agents on Open Rails* hackathon, track **Stable Agents: LatAm (Ri
 
 | Route (GET) | Price | Alt. price | What you get |
 |---|---|---|---|
-| `/ar/dolar?casa=blue` | 15 wARS | 0.01 USDC / USD₮ | USD/ARS quotes: oficial, blue, MEP, CCL, cripto, tarjeta, mayorista, spread and blue-vs-oficial gap |
-| `/ar/inflacion?from=2026-01&to=2026-09&amount=100000` | 15 wARS | 0.01 USDC / USD₮ | INDEC CPI: latest monthly and YoY, compounded inflation between months, amount adjuster |
-| `/ar/feriados?date=2026-11-20&add_business_days=5` | 15 wARS | 0.01 USDC / USD₮ | National holidays, is-business-day, next business day, date + N business days |
-| `/ar/cuit?cuit=20-12345678-6` | 10 wARS | 0.01 USDC / USD₮ | CUIT/CUIL check digit, entity type, formatting (offline) |
-| `/ar/cbu?cbu=0070999003000412345671` | 10 wARS | 0.01 USDC / USD₮ | CBU/CVU check digits, CBU vs CVU, bank (offline) |
+| `/ar/dolar?casa=blue` | 15 wARS | 0.01 USDC / USD₮ / USA₮ | USD/ARS quotes: oficial, blue, MEP, CCL, cripto, tarjeta, mayorista, spread and blue-vs-oficial gap |
+| `/ar/inflacion?from=2026-01&to=2026-09&amount=100000` | 15 wARS | 0.01 USDC / USD₮ / USA₮ | INDEC CPI: latest monthly and YoY, compounded inflation between months, amount adjuster |
+| `/ar/feriados?date=2026-11-20&add_business_days=5` | 15 wARS | 0.01 USDC / USD₮ / USA₮ | National holidays, is-business-day, next business day, date + N business days |
+| `/ar/cuit?cuit=20-12345678-6` | 10 wARS | 0.01 USDC / USD₮ / USA₮ | CUIT/CUIL check digit, entity type, formatting (offline) |
+| `/ar/cbu?cbu=0070999003000412345671` | 10 wARS | 0.01 USDC / USD₮ / USA₮ | CBU/CVU check digits, CBU vs CVU, bank (offline) |
 
 Free routes: `/` (machine-readable description and prices), `/prices`, `/health`,
 `/ramp?address=0x...&amount=10000` (a Ripio on-ramp link that delivers wARS on Celo to
@@ -48,7 +48,7 @@ bank account into wARS on Celo with no extra step.
 
 ```
 client ── GET /ar/dolar ─────────────────────────────▶ agent
-       ◀── 402 + PAYMENT-REQUIRED (wARS, USDC, USD₮) ─┘
+       ◀── 402 + PAYMENT-REQUIRED (wARS, USDC, USD₮, USA₮) ─┘
 client signs Permit2 transfer (+ EIP-2612 permit, no gas)
 client ── GET /ar/dolar + PAYMENT-SIGNATURE ─────────▶ agent ── /verify ─▶ api.x402.celo.org
                                                        agent runs the query
@@ -95,6 +95,27 @@ PayTo / agent wallet: `0xb6d00A148AD63Fd9CCDd484B687c6012bA1561E1`
   (wARS `Transfer` 0x1731…6d72 → PayTo), HTTP 200 with the quotes JSON. This was a self-test,
   not a customer sale.
 
+### USA₮ accepted
+
+Every paid route also accepts **USA₮** (Tether America USD, issued by Anchorage Digital Bank),
+`0xD2ab3C9A02DBBAB236BfEC45D1d755DF4267F771` on Celo, 6 decimals, settled gasless through the
+Celo facilitator with EIP-3009 (`extra: { name: "Tether America USD", version: "1" }`). The address
+matches usat.io/supported-protocols, docs.celo.org and the facilitator's own `/supported` table.
+
+### The agent buys, too (Build with buy, behind a flag)
+
+`/ar/brief?lang=es|en` (45 wARS or 0.03 USD) returns today's USD/ARS quotes plus a 3-sentence
+plain-language brief. To write it, the agent **buys** one LLM completion it does not own:
+Cencori inference sold through the [Buy](https://usebuy.ai) gateway on Celo, a flat 0.01 USD per
+call in USA₮ (or USD₮/USDC), paid over x402 from the agent's own wallet (`src/buy.js`).
+
+- The payer signs through the attribution-tagged wallet client (`taggedWalletClient`).
+- Spend rails before anything is signed: only the Buy gateway's payTo, only Celo, only the chosen
+  token, a hard 0.01 per-payment cap and a daily call budget.
+- If the upstream call fails, `/ar/brief` answers 502 and the caller's payment is never settled.
+- Off unless `BUY_ENABLED=1` and `BUY_PRIVATE_KEY` are set (optional `BUY_ASSET`, `BUY_MAX_PER_DAY`).
+  Dry-run the live quote with `node scripts/buy-proof.js` (signs nothing).
+
 ## Use it
 
 ### Pay from a script (agent or developer)
@@ -102,7 +123,7 @@ PayTo / agent wallet: `0xb6d00A148AD63Fd9CCDd484B687c6012bA1561E1`
 ```bash
 npm install
 BUYER_PRIVATE_KEY=0x... node scripts/pay.js "https://<host>/ar/dolar?casa=blue"          # pays in wARS
-BUYER_PRIVATE_KEY=0x... node scripts/pay.js "https://<host>/ar/cuit?cuit=20123456786" USDC
+BUYER_PRIVATE_KEY=0x... node scripts/pay.js "https://<host>/ar/cuit?cuit=20123456786" USDC   # or USDT, USAT
 ```
 
 `scripts/pay.js` uses the stock `@x402/fetch` client, opts wARS into its spend controls
@@ -153,7 +174,7 @@ The repo ships a stdio MCP server with six tools: `ar_dolar`, `ar_inflacion`,
 
 - **Quote mode (free):** leave `AR_AGENT_PRIVATE_KEY` unset. Every tool returns the price and
   the x402 payment requirements; nothing is paid. Good for wiring it into your agent first.
-- **Paid mode:** set the key. Each call pays the exact price in wARS (or `AR_AGENT_ASSET=USDC` / `USDT`)
+- **Paid mode:** set the key. Each call pays the exact price in wARS (or `AR_AGENT_ASSET=USDC` / `USDT` / `USAT`)
   and returns the data plus the settlement tx. A per-call cap applies (`AR_AGENT_MAX_WARS`, default 20).
   The payer needs no CELO: the Celo facilitator pays gas.
 - Use a dedicated low-balance wallet for the key, never your main one.

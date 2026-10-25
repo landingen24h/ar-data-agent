@@ -12,7 +12,11 @@ export const ASSETS = {
   wARS: { address: getAddress('0x0DC4F92879B7670e5f4e4e6e3c801D229129D90D'), decimals: 18, extra: { name: 'Peso Argentino', version: '1', assetTransferMethod: 'permit2' } },
   USDC: { address: getAddress('0xcebA9300f2b948710d2653dD7B07f33A8B32118C'), decimals: 6, extra: { name: 'USDC', version: '2' } },
   USDT: { address: getAddress('0x48065fbBE25f71C9282ddf5e1cD6D6A887483D5e'), decimals: 6, extra: { name: 'Tether USD', version: '1' } },
+  // USA₮ (Tether America USD, issued by Anchorage Digital Bank). Official Celo address per
+  // usat.io/supported-protocols and docs.celo.org; EIP-3009 on the Celo facilitator.
+  USAT: { address: getAddress('0xD2ab3C9A02DBBAB236BfEC45D1d755DF4267F771'), decimals: 6, extra: { name: 'Tether America USD', version: '1' } },
 };
+export const USD_ASSETS = ['USDC', 'USDT', 'USAT'];
 
 // Human prices per call. wARS is the primary price (pesos in, pesos priced);
 // USDC/USDT are offered as an alternative for buyers that only hold dollars.
@@ -24,6 +28,13 @@ export const ROUTES = {
   '/ar/cbu': { wars: '10', usd: '0.01', description: 'Validate an Argentine CBU/CVU (both check digits, bank)', query: { cbu: '22 digits' } },
 };
 
+// Routes that make the agent BUY an upstream service (see buy.js). Listed and gated
+// only when the buy flag is on, so a disabled deployment never quotes them.
+export const BUY_ROUTES = {
+  '/ar/brief': { wars: '45', usd: '0.03', description: 'Plain-language brief of today\'s USD/ARS quotes and the blue/MEP/CCL gap, written by an LLM the agent buys per call over x402 (Cencori via usebuy.ai)', query: { lang: 'es | en (optional, default es)' } },
+};
+export const routeTable = (buy = false) => (buy ? { ...ROUTES, ...BUY_ROUTES } : ROUTES);
+
 // "15" wARS -> "15000000000000000000" (string base units, never floats)
 export function toBaseUnits(human, decimals) {
   const [i, f = ''] = String(human).split('.');
@@ -32,11 +43,11 @@ export function toBaseUnits(human, decimals) {
 }
 
 export function acceptsFor(route, payTo, { network = CELO_MAINNET, includeUsd = true } = {}) {
-  const r = ROUTES[route];
+  const r = ROUTES[route] || BUY_ROUTES[route];
   const to = getAddress(payTo);
   const opt = (sym, human) => ({ scheme: 'exact', network, payTo: to, price: { amount: toBaseUnits(human, ASSETS[sym].decimals), asset: ASSETS[sym].address, extra: { ...ASSETS[sym].extra } } });
   const list = [opt('wARS', r.wars)];
-  if (includeUsd) list.push(opt('USDC', r.usd), opt('USDT', r.usd));
+  if (includeUsd) for (const sym of USD_ASSETS) list.push(opt(sym, r.usd));
   return list;
 }
 
@@ -45,7 +56,7 @@ export function acceptsFor(route, payTo, { network = CELO_MAINNET, includeUsd = 
 export function x402Routes(payTo, opts = {}) {
   const base = opts.basePath || '';
   const out = {};
-  for (const [path, r] of Object.entries(ROUTES)) {
+  for (const [path, r] of Object.entries(routeTable(!!opts.buy))) {
     out[`GET ${base}${path}`] = {
       accepts: acceptsFor(path, payTo, opts),
       description: r.description,

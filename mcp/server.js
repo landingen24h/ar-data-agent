@@ -30,7 +30,7 @@ async function call(path, params) {
     try { req = pr ? JSON.parse(Buffer.from(pr, 'base64').toString()) : await r.json(); } catch { /* ignore */ }
     const accepts = (req?.accepts || []).map(a => ({ network: a.network, asset: a.asset, amount: a.amount, payTo: a.payTo }));
     return { mode: 'quote', status: r.status, url, accepts,
-      note: 'Quote mode: no AR_AGENT_PRIVATE_KEY set, nothing was paid. Set AR_AGENT_PRIVATE_KEY to a Celo wallet holding wARS (or USDC/USDT with AR_AGENT_ASSET) to get the data. Gasless for the payer.' };
+      note: 'Quote mode: no AR_AGENT_PRIVATE_KEY set, nothing was paid. Set AR_AGENT_PRIVATE_KEY to a Celo wallet holding wARS (or USDC/USDT/USAT with AR_AGENT_ASSET) to get the data. Gasless for the payer.' };
   }
   const r = await payer.payFetch(url);
   const pr = r.headers.get('payment-response');

@@ -60,13 +60,13 @@ describe('payment gate', () => {
     const r = await app.request('http://x/ar/cbu');
     expect(r.status).toBe(400); expect((await r.json()).charged).toBe(false); expect(fac.verify).not.toHaveBeenCalled();
   });
-  it('answers 402 with wARS first, then USDC and USDT', async () => {
+  it('answers 402 with wARS first, then USDC, USDT and USA₮', async () => {
     const { app } = makeApp();
     const r = await app.request('http://x/ar/cuit?cuit=20123456786');
     expect(r.status).toBe(402);
     const pr = decode(r.headers.get('payment-required'));
     expect(pr.x402Version).toBe(2);
-    expect(pr.accepts.map(a => a.asset)).toEqual([ASSETS.wARS.address, ASSETS.USDC.address, ASSETS.USDT.address]);
+    expect(pr.accepts.map(a => a.asset)).toEqual([ASSETS.wARS.address, ASSETS.USDC.address, ASSETS.USDT.address, ASSETS.USAT.address]);
     expect(pr.accepts[0].amount).toBe('10000000000000000000');
     expect(pr.extensions.eip2612GasSponsoring).toBeTruthy();
   });

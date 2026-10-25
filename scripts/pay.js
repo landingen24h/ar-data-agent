@@ -1,5 +1,5 @@
-// Buyer CLI: pay one call in wARS (default), USDC or USDT on Celo mainnet.
-//   BUYER_PRIVATE_KEY=0x... node scripts/pay.js "https://host/ar/dolar?casa=blue" [wARS|USDC|USDT]
+// Buyer CLI: pay one call in wARS (default), USDC, USDT or USAT on Celo mainnet.
+//   BUYER_PRIVATE_KEY=0x... node scripts/pay.js "https://host/ar/dolar?casa=blue" [wARS|USDC|USDT|USAT]
 // The payer needs only the token: the Celo facilitator pays gas and sponsors the
 // Permit2 approval (EIP-2612), so no CELO is required.
 import { x402Client, wrapFetchWithPayment } from '@x402/fetch';
@@ -23,7 +23,7 @@ export function makePayFetch({ privateKey, asset = 'wARS', rpcUrl = 'https://for
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   const [url, asset = 'wARS'] = process.argv.slice(2);
-  if (!url || !process.env.BUYER_PRIVATE_KEY) { console.error('usage: BUYER_PRIVATE_KEY=0x.. node scripts/pay.js <url> [wARS|USDC|USDT]'); process.exit(2); }
+  if (!url || !process.env.BUYER_PRIVATE_KEY) { console.error('usage: BUYER_PRIVATE_KEY=0x.. node scripts/pay.js <url> [wARS|USDC|USDT|USAT]'); process.exit(2); }
   const { payFetch, account } = makePayFetch({ privateKey: process.env.BUYER_PRIVATE_KEY, asset });
   console.error(`payer ${account.address}, asset ${asset}`);
   const res = await payFetch(url);
