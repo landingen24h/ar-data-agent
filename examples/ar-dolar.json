@@ -1,0 +1,127 @@
+{
+  "capability": "ar.dolar",
+  "route": "/api/x402/ar/dolar",
+  "request": {},
+  "response": {
+    "currency_pair": "USD/ARS",
+    "casa": "all",
+    "quotes": [
+      {
+        "casa": "oficial",
+        "nombre": "Oficial",
+        "compra": 1500,
+        "venta": 1550,
+        "spread": 50,
+        "updated_at": "2026-10-23T18:55:00.000Z"
+      },
+      {
+        "casa": "blue",
+        "nombre": "Blue",
+        "compra": 1545,
+        "venta": 1565,
+        "spread": 20,
+        "updated_at": "2026-10-25T11:59:00.000Z"
+      },
+      {
+        "casa": "bolsa",
+        "nombre": "Bolsa",
+        "compra": 1557.4,
+        "venta": 1563.9,
+        "spread": 6.5,
+        "updated_at": "2026-10-25T11:59:00.000Z"
+      },
+      {
+        "casa": "contadoconliqui",
+        "nombre": "Contado con liquidación",
+        "compra": 1649.2,
+        "venta": 1654,
+        "spread": 4.8,
+        "updated_at": "2026-10-25T11:59:00.000Z"
+      },
+      {
+        "casa": "mayorista",
+        "nombre": "Mayorista",
+        "compra": 1520.5,
+        "venta": 1529.5,
+        "spread": 9,
+        "updated_at": "2026-10-23T16:07:00.000Z"
+      },
+      {
+        "casa": "cripto",
+        "nombre": "Cripto",
+        "compra": 1634.54,
+        "venta": 1642.29,
+        "spread": 7.75,
+        "updated_at": "2026-10-25T11:59:00.000Z"
+      },
+      {
+        "casa": "tarjeta",
+        "nombre": "Tarjeta",
+        "compra": 1950,
+        "venta": 2015,
+        "spread": 65,
+        "updated_at": "2026-10-23T18:55:00.000Z"
+      }
+    ],
+    "source": "DolarApi.com (public Argentine market quotes)",
+    "note": "ARS per 1 USD. Market quotes, not financial advice.",
+    "brecha_blue_vs_oficial_pct": 0.97
+  },
+  "how_produced": "response: src/agent.js run locally (node scripts/make-examples.mjs) at 2026-10-25T12:12:40.709Z with live upstream data, the same function the paid route runs after a payment settles. No payment was made and nothing was invented. live_unpaid: the real answer of the production endpoint to the same request sent without payment.",
+  "live_unpaid": {
+    "url": "https://landingen24h.com/api/x402/ar/dolar",
+    "method": "POST",
+    "status": 402,
+    "x402Version": 1,
+    "error": "X-PAYMENT header is required",
+    "accepts": [
+      {
+        "scheme": "exact",
+        "network": "base",
+        "maxAmountRequired": "2000",
+        "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+        "payTo": "0xb6d00A148AD63Fd9CCDd484B687c6012bA1561E1"
+      },
+      {
+        "scheme": "exact",
+        "network": "polygon",
+        "maxAmountRequired": "2000",
+        "asset": "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359",
+        "payTo": "0xb6d00A148AD63Fd9CCDd484B687c6012bA1561E1"
+      },
+      {
+        "scheme": "exact",
+        "network": "solana",
+        "maxAmountRequired": "2000",
+        "asset": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+        "payTo": "5aMaTc619f8oRyFcoYLFv3DoNPhyfVnVZbDWAaNDUmJY"
+      }
+    ],
+    "payment_required_header_v2": {
+      "x402Version": 2,
+      "accepts": [
+        {
+          "scheme": "exact",
+          "network": "eip155:8453",
+          "amount": "2000",
+          "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+          "payTo": "0xb6d00A148AD63Fd9CCDd484B687c6012bA1561E1"
+        },
+        {
+          "scheme": "exact",
+          "network": "eip155:137",
+          "amount": "2000",
+          "asset": "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359",
+          "payTo": "0xb6d00A148AD63Fd9CCDd484B687c6012bA1561E1"
+        },
+        {
+          "scheme": "exact",
+          "network": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+          "amount": "2000",
+          "asset": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+          "payTo": "5aMaTc619f8oRyFcoYLFv3DoNPhyfVnVZbDWAaNDUmJY"
+        }
+      ]
+    }
+  }
+}

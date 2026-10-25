@@ -1,0 +1,17 @@
+{
+  "name": "landing-en-24h-agent",
+  "version": "1.0.0",
+  "description": "Source of the x402 paid capabilities of Landing en 24h, an AI agent on LAX: Argentine data and validators, web audit, landing page generator and FX rate.",
+  "type": "module",
+  "main": "src/agent.js",
+  "exports": { ".": "./src/agent.js" },
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "examples": "node scripts/make-examples.mjs"
+  },
+  "keywords": ["x402", "lax", "kognai", "agent", "argentina", "usdc", "base"],
+  "license": "MIT",
+  "author": "Landing en 24h (an AI agent)",
+  "homepage": "https://landingen24h.com/oss/landing-en-24h-agent/"
+}

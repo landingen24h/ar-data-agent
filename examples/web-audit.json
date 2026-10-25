@@ -1,0 +1,160 @@
+{
+  "capability": "web.audit",
+  "route": "/api/x402/web/audit",
+  "request": {
+    "url": "https://example.com"
+  },
+  "response": {
+    "url": "https://example.com/",
+    "score": 38,
+    "grade": "F",
+    "issues": [
+      {
+        "severity": "low",
+        "code": "title_length",
+        "message": "Title length 14 (aim for 15-65 chars)."
+      },
+      {
+        "severity": "medium",
+        "code": "missing_meta_description",
+        "message": "Missing meta description."
+      },
+      {
+        "severity": "high",
+        "code": "no_viewport",
+        "message": "No viewport meta tag: page will not render well on mobile."
+      },
+      {
+        "severity": "low",
+        "code": "no_lang",
+        "message": "Missing lang attribute on <html>."
+      },
+      {
+        "severity": "medium",
+        "code": "no_h1",
+        "message": "No <h1> heading."
+      },
+      {
+        "severity": "low",
+        "code": "no_canonical",
+        "message": "No canonical link."
+      },
+      {
+        "severity": "low",
+        "code": "open_graph_incomplete",
+        "message": "Open Graph title/image missing: poor link previews on social and chat apps."
+      },
+      {
+        "severity": "low",
+        "code": "no_favicon",
+        "message": "No favicon link."
+      },
+      {
+        "severity": "low",
+        "code": "no_structured_data",
+        "message": "No JSON-LD structured data."
+      },
+      {
+        "severity": "medium",
+        "code": "security_headers_missing",
+        "message": "Missing security headers: hsts, csp, x_frame_options, x_content_type_options, referrer_policy."
+      }
+    ],
+    "checks": {
+      "status": 200,
+      "final_url": "https://example.com/",
+      "redirected": false,
+      "response_ms": 36,
+      "html_bytes": 577,
+      "content_type": "text/html; charset=utf-8",
+      "https": true,
+      "http_redirects_to_https": null,
+      "title": "Example Domain",
+      "title_length": 14,
+      "meta_description": null,
+      "meta_description_length": 0,
+      "viewport_meta": false,
+      "html_lang": null,
+      "h1_count": 0,
+      "canonical": null,
+      "open_graph": {
+        "title": false,
+        "image": false
+      },
+      "favicon": false,
+      "images": 0,
+      "images_missing_alt": 0,
+      "structured_data": false,
+      "scripts": 1,
+      "security_headers": {
+        "hsts": false,
+        "csp": false,
+        "x_frame_options": false,
+        "x_content_type_options": false,
+        "referrer_policy": false
+      },
+      "compression": "br",
+      "server": "cloudflare"
+    },
+    "checked_at": "2026-10-25T12:12:46.625Z",
+    "note": "Single-page technical/SEO check from one fetch; no JavaScript rendering.",
+    "fix_offer": "Need it fixed? A rebuilt page in 24 hours: https://landingen24h.com/en/fix/?r=x402audit"
+  },
+  "how_produced": "response: src/agent.js run locally (node scripts/make-examples.mjs) at 2026-10-25T12:12:40.709Z with live upstream data, the same function the paid route runs after a payment settles. No payment was made and nothing was invented. live_unpaid: the real answer of the production endpoint to the same request sent without payment.",
+  "live_unpaid": {
+    "url": "https://landingen24h.com/api/x402/web/audit",
+    "method": "POST",
+    "status": 402,
+    "x402Version": 1,
+    "error": "X-PAYMENT header is required",
+    "accepts": [
+      {
+        "scheme": "exact",
+        "network": "base",
+        "maxAmountRequired": "20000",
+        "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+        "payTo": "0xb6d00A148AD63Fd9CCDd484B687c6012bA1561E1"
+      },
+      {
+        "scheme": "exact",
+        "network": "polygon",
+        "maxAmountRequired": "20000",
+        "asset": "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359",
+        "payTo": "0xb6d00A148AD63Fd9CCDd484B687c6012bA1561E1"
+      },
+      {
+        "scheme": "exact",
+        "network": "solana",
+        "maxAmountRequired": "20000",
+        "asset": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+        "payTo": "5aMaTc619f8oRyFcoYLFv3DoNPhyfVnVZbDWAaNDUmJY"
+      }
+    ],
+    "payment_required_header_v2": {
+      "x402Version": 2,
+      "accepts": [
+        {
+          "scheme": "exact",
+          "network": "eip155:8453",
+          "amount": "20000",
+          "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+          "payTo": "0xb6d00A148AD63Fd9CCDd484B687c6012bA1561E1"
+        },
+        {
+          "scheme": "exact",
+          "network": "eip155:137",
+          "amount": "20000",
+          "asset": "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359",
+          "payTo": "0xb6d00A148AD63Fd9CCDd484B687c6012bA1561E1"
+        },
+        {
+          "scheme": "exact",
+          "network": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+          "amount": "20000",
+          "asset": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+          "payTo": "5aMaTc619f8oRyFcoYLFv3DoNPhyfVnVZbDWAaNDUmJY"
+        }
+      ]
+    }
+  }
+}
