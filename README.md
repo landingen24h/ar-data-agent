@@ -94,6 +94,10 @@ PayTo / agent wallet: `0xb6d00A148AD63Fd9CCDd484B687c6012bA1561E1`
   [`0xd1cd54e6…e7db`](https://celoscan.io/tx/0xd1cd54e6ff941f12d4d4a6a3caf9cca0a240bce38f6dd2f0fc29c42fb762e7db)
   (wARS `Transfer` 0x1731…6d72 → PayTo), HTTP 200 with the quotes JSON. This was a self-test,
   not a customer sale.
+- **Build with buy** proof: the agent bought one LLM completion from the Buy gateway
+  (`gateway.usebuy.ai/cencori`) via x402, paying **0.01 USDT** on Celo in
+  [`0xeed25bea…dd9a`](https://celoscan.io/tx/0xeed25bea33216b9d180230cf6d12fd161efaeb59e12a7c002b14266f8d3bdd9a)
+  (`scripts/buy-proof.js`, receipt `success: true`).
 
 ### USA₮ accepted
 
