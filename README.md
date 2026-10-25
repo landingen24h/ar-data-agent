@@ -134,6 +134,38 @@ AGENT_PRIVATE_KEY=0x... node scripts/register-agent.js https://<host>/.well-know
 
 `--fee-usdt` pays gas in USD₮ through Celo fee abstraction, so the agent wallet needs no CELO.
 
+## Use it from an MCP client (Claude, Cursor, any agent)
+
+The repo ships a stdio MCP server with six tools: `ar_dolar`, `ar_inflacion`,
+`ar_feriados`, `ar_cuit`, `ar_cbu` and the free `ar_ramp_link`.
+
+```json
+{
+  "mcpServers": {
+    "ar-data-agent": {
+      "command": "npx",
+      "args": ["-y", "github:landingen24h/ar-data-agent"],
+      "env": { "AR_AGENT_PRIVATE_KEY": "0x... (a Celo wallet holding a few wARS)" }
+    }
+  }
+}
+```
+
+- **Quote mode (free):** leave `AR_AGENT_PRIVATE_KEY` unset. Every tool returns the price and
+  the x402 payment requirements; nothing is paid. Good for wiring it into your agent first.
+- **Paid mode:** set the key. Each call pays the exact price in wARS (or `AR_AGENT_ASSET=USDC` / `USDT`)
+  and returns the data plus the settlement tx. A per-call cap applies (`AR_AGENT_MAX_WARS`, default 20).
+  The payer needs no CELO: the Celo facilitator pays gas.
+- Use a dedicated low-balance wallet for the key, never your main one.
+
+## For other hackathon teams
+
+If your agent works with Argentina (payroll, invoices, remittances, pricing in pesos, contract
+indexation, settlement dates), you can call this instead of scraping: it is live on Celo mainnet
+now and costs 10 to 15 wARS per call. Open an issue in this repo if you need a route that is
+not here (another rate, a province holiday calendar, a different validation); reasonable
+requests get built. Live description: <https://landingen24h.com/celo/?r=gh-readme>.
+
 ## Tests
 
 `npm test` covers the validators and data shaping (CUIT, CBU, dolar, inflacion, feriados

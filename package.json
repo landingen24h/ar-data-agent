@@ -1,6 +1,6 @@
 {
   "name": "ar-data-agent",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Pay-per-call Argentine data agent priced in wARS on Celo via x402 (dolar, inflacion, feriados, CUIT, CBU).",
   "scripts": {
     "start": "node src/node.js",
@@ -8,7 +8,8 @@
     "test:live": "LIVE=1 vitest run",
     "build:worker": "esbuild src/worker.js --bundle --format=esm --platform=browser --conditions=worker,browser --minify --alias:url=./src/shims/url.js --outfile=dist/worker.js",
     "pay": "node scripts/pay.js",
-    "register": "node scripts/register-agent.js"
+    "register": "node scripts/register-agent.js",
+    "mcp": "node mcp/server.js"
   },
   "keywords": [
     "celo",
@@ -18,7 +19,9 @@
     "argentina",
     "erc-8004",
     "agents",
-    "stablecoins"
+    "stablecoins",
+    "mcp",
+    "model-context-protocol"
   ],
   "author": "Landing en 24h <landingen24h@mail.grokbot.com>",
   "license": "MIT",
@@ -26,13 +29,15 @@
   "dependencies": {
     "@celo/attribution-tags": "^0.5.0",
     "@hono/node-server": "^2.1.5",
+    "@modelcontextprotocol/sdk": "^1.32.2",
     "@x402/core": "^2.28.0",
     "@x402/evm": "^2.28.0",
     "@x402/extensions": "^2.28.0",
     "@x402/fetch": "^2.28.0",
     "@x402/hono": "^2.28.0",
     "hono": "^4.13.13",
-    "viem": "^2.57.11"
+    "viem": "^2.57.11",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "esbuild": "^0.28.2",
@@ -47,5 +52,8 @@
   "engines": {
     "node": ">=20"
   },
-  "main": "src/app.js"
+  "main": "src/app.js",
+  "bin": {
+    "ar-data-agent-mcp": "mcp/server.js"
+  }
 }
