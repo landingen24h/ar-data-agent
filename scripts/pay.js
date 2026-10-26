@@ -7,7 +7,7 @@ import { ExactEvmScheme } from '@x402/evm/exact/client';
 import { privateKeyToAccount } from 'viem/accounts';
 import { ASSETS, CELO_MAINNET, ROUTES, toBaseUnits } from '../src/pricing.js';
 
-export function makePayFetch({ privateKey, asset = 'wARS', rpcUrl = 'https://forno.celo.org', baseFetch = fetch, maxWars = '50' }) {
+export function makePayFetch({ privateKey, asset = 'wARS', rpcUrl = 'https://forno.celo.org', baseFetch = fetch, maxWars = '50', payTo } = {}) {
   const account = privateKeyToAccount(privateKey);
   const client = new x402Client();
   // Permit2 assets are outside the library's default-asset table: opt in with an atomic cap.
@@ -16,7 +16,11 @@ export function makePayFetch({ privateKey, asset = 'wARS', rpcUrl = 'https://for
     maxAmountPerPayment: '$0.05',
   });
   // Only accept the asset we asked for.
-  client.registerPolicy((_v, reqs) => reqs.filter(r => r.asset.toLowerCase() === ASSETS[asset].address.toLowerCase()));
+  // If payTo is given, only pay that address: a mirror or a hostile AR_AGENT_URL can't redirect funds.
+  const pin = payTo ? String(payTo).toLowerCase() : null;
+  client.registerPolicy((_v, reqs) => reqs.filter(r =>
+    r.asset.toLowerCase() === ASSETS[asset].address.toLowerCase() &&
+    (!pin || String(r.payTo).toLowerCase() === pin)));
   client.register('eip155:*', new ExactEvmScheme(account, { rpcUrl }));
   return { payFetch: wrapFetchWithPayment(baseFetch, client), account };
 }

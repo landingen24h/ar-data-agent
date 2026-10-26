@@ -12,7 +12,10 @@ const BASE = (process.env.AR_AGENT_URL || 'https://landingen24h.com/celo').repla
 const KEY = process.env.AR_AGENT_PRIVATE_KEY || process.env.BUYER_PRIVATE_KEY || '';
 const ASSET = process.env.AR_AGENT_ASSET || 'wARS';
 const MAX_WARS = process.env.AR_AGENT_MAX_WARS || '20';
-const payer = KEY ? makePayFetch({ privateKey: KEY, asset: ASSET, maxWars: MAX_WARS }) : null;
+// Payments are pinned to the AR Data Agent seller wallet, so pointing AR_AGENT_URL at a mirror
+// can't send your wARS anywhere else. Override only if you run your own seller.
+const PAY_TO = process.env.AR_AGENT_PAY_TO || '0xb6d00A148AD63Fd9CCDd484B687c6012bA1561E1';
+const payer = KEY ? makePayFetch({ privateKey: KEY, asset: ASSET, maxWars: MAX_WARS, payTo: PAY_TO }) : null;
 
 function qs(params) {
   const u = new URLSearchParams();
