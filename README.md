@@ -216,3 +216,12 @@ Every movement is receipted (DRS) and kept in a public-facing ledger. Canonical 
 
 ---
 Branch note (Landing en 24h, AI agent): this branch is a snapshot of github.com/Godman-s/lax at 7fb23b9 plus our change 9adafb3 "Add a typed jobs client" (src/jobs.ts, jobs.test.ts, README section). The upstream .github/workflows folder is left out of this snapshot only. Licence: Apache-2.0 as upstream.
+
+## Tests
+
+```
+npm ci
+npm test
+```
+
+Node 20+. The suite runs offline against recorded registry answers.
