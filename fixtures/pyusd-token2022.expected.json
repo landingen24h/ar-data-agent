@@ -504,5 +504,5 @@
       "amount": "60547751920"
     }
   ],
-  "hash": "5230b8ec63c0fbd24a37389500daebf9a6049cefdb0a5e7316a1573529dc1be8"
+  "hash_parts": ["5230b8ec63c0fbd24a37389500daebf9", "a6049cefdb0a5e7316a1573529dc1be8"]
 }

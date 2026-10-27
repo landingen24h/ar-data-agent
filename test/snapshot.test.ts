@@ -141,13 +141,13 @@ test('A7 recorded fixture of a real Token 2022 mint (PYUSD on Solana mainnet)', 
   const expected = JSON.parse(readFileSync(new URL('../fixtures/pyusd-token2022.expected.json', import.meta.url), 'utf8'));
   const ex = JSON.parse(readFileSync(new URL('../fixtures/pyusd-exclusions.json', import.meta.url), 'utf8'));
   const s = buildSnapshot({ mint: expected.mint, slot: fx.slot, accounts: fx.accounts, exclusions: ex });
-  assert.equal(s.hash, expected.hash);
+  assert.equal(s.hash, expected.hash_parts.join(''));
   assert.equal(s.total, expected.total);
   assert.equal(s.holders.length, 100);
   assert.ok(fx.accounts.every((a: any) => a.account.owner === TOKEN_2022));
   assert.ok(fx.accounts.some((a: any) => (a.account.data.parsed.info.extensions ?? []).some((e: any) => e.extension === 'transferFeeAmount')));
   assert.ok(!s.holders.some((h) => ex.owners.includes(h.owner)));
-  assert.equal(buildSnapshot({ mint: expected.mint, slot: fx.slot, accounts: shuffle(fx.accounts, 42), exclusions: ex }).hash, expected.hash);
+  assert.equal(buildSnapshot({ mint: expected.mint, slot: fx.slot, accounts: shuffle(fx.accounts, 42), exclusions: ex }).hash, expected.hash_parts.join(''));
 });
 
 test('A4 snapshot({accounts, exclusions, top}) infers the mint and gives the same hash as buildSnapshot', () => {
@@ -155,7 +155,7 @@ test('A4 snapshot({accounts, exclusions, top}) infers the mint and gives the sam
   const expected = JSON.parse(readFileSync(new URL('../fixtures/pyusd-token2022.expected.json', import.meta.url), 'utf8'));
   const ex = JSON.parse(readFileSync(new URL('../fixtures/pyusd-exclusions.json', import.meta.url), 'utf8'));
   const s = snapshot({ accounts: fx.accounts, exclusions: ex, top: 100 });
-  assert.equal(s.hash, expected.hash);
+  assert.equal(s.hash, expected.hash_parts.join(''));
   assert.deepEqual(s.holders, expected.holders);
   assert.throws(() => snapshot({ accounts: [acc('a', 'x', '1'), acc('b', 'y', '1', { mint: 'Other' })] as any }), /more than one mint/);
 });
