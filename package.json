@@ -1,0 +1,10 @@
+{
+  "name": "patch-agent-evidence",
+  "version": "0.4.1",
+  "private": true,
+  "description": "Raw runs of the landingen24h.com/patch coding agent on the Kognai qualifier, with integrity tests.",
+  "type": "module",
+  "license": "MIT",
+  "scripts": { "test": "node --test test/" },
+  "engines": { "node": ">=20" }
+}

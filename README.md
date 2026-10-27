@@ -20,3 +20,7 @@ These checks are ours, not the hidden qualifier tests.
 Where the agent misses, we say so here instead of fixing its output by hand.
 
 MIT licence.
+
+## Tests
+
+`npm test` (Node 20+, no dependencies, no network) checks every run: the transcript is a 200 answer whose patch is byte identical to patch.diff, every file sits under qualifier/Qn/, each answer lists a test file that is in its patch, and nothing looks like a secret.
