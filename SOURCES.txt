@@ -1,0 +1,5 @@
+Shot: "Strandwellenbeugung (Ostspitze Wangerooge) ii.webm" by Rhetos, Wikimedia Commons
+https://commons.wikimedia.org/wiki/File:Strandwellenbeugung_(Ostspitze_Wangerooge)_ii.webm
+Licence: CC0 1.0 (public domain dedication), http://creativecommons.org/publicdomain/zero/1.0/
+Used: seconds 75 to 81 of the original (1920x1080, 25 fps), scaled to 1280x720, 25 fps, audio removed.
+Title letters: OpenCV built in Hershey Duplex stroke font (the Hershey fonts are public domain). No other material is used.

@@ -1,0 +1,3 @@
+frames before 150 after 150 at 25 fps, 1280x720, both H.264 crf 26 from the same decoded frames
+title area per frame: max 11586 px of 921600 (1.26 percent)
+outside the title area (dilated 8 px): mean abs diff 6.318 (sum of 3 channels, 0 to 765), PSNR 37.1 dB, codec noise only (the raw frames are identical there)

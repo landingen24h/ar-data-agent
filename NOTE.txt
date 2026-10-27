@@ -1,0 +1,3 @@
+1. The sea horizon is found in every frame (edge search plus a RANSAC line fit) and the camera pan is read from the clouds with optical flow, so the title holds its place on the horizon through a handheld walk with tilt and roll.
+2. NORTH SEA stands on the horizon like a far landmark: the sea line hides its foot, the posts and the two walkers pass in front of it through a luminance matte, and nothing outside the letters is touched.
+3. Its colour comes from the haze right behind it in each frame (dark posts ignored, smoothed over half a second), a little darker than the haze and brighter toward the top like the sunlit clouds, with soft edges and matching grain.
