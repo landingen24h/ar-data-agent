@@ -5,6 +5,7 @@ import { recoverTypedDataAddress } from 'viem';
 import { createApp } from '../src/app.js';
 import { ASSETS, x402Routes } from '../src/pricing.js';
 import { BUY_SERVICE, briefPrompt, buyCompletion, dailyBudget, makeBuyer, taggedSigner } from '../src/buy.js';
+import { BriefGuard, durableGuard, guardLogic, memoryGuard, paymentKey } from '../src/guard.js';
 import { makePayFetch } from '../scripts/pay.js';
 import { quote } from '../scripts/buy-proof.js';
 
@@ -110,7 +111,7 @@ describe('Build with buy (upstream purchase, flagged)', () => {
   it('/ar/brief: caller pays us, we buy the completion, response carries the brief and upstream receipt', async () => {
     const fac = mockFacilitator(); const gw = mockGateway();
     const { payFetch: upstream } = makeBuyer({ privateKey: generatePrivateKey(), asset: 'USAT', baseFetch: gw.fetchImpl });
-    const app = createApp({ payTo: PAY_TO, facilitatorClient: fac, fetchImpl: dolarFetch, buy: { enabled: true, payFetch: upstream, asset: 'USAT' } });
+    const app = createApp({ payTo: PAY_TO, facilitatorClient: fac, fetchImpl: dolarFetch, buy: { enabled: true, payFetch: upstream, asset: 'USAT', localGuard: true } });
     const r402 = await app.request('http://x/ar/brief?lang=es');
     expect(r402.status).toBe(402);
     const pr = decode(r402.headers.get('payment-required'));
@@ -127,14 +128,14 @@ describe('Build with buy (upstream purchase, flagged)', () => {
   it('/ar/brief: upstream failure means the caller is NOT charged', async () => {
     const fac = mockFacilitator(); const gw = mockGateway({ upstreamStatus: 500 });
     const { payFetch: upstream } = makeBuyer({ privateKey: generatePrivateKey(), asset: 'USAT', baseFetch: gw.fetchImpl });
-    const app = createApp({ payTo: PAY_TO, facilitatorClient: fac, fetchImpl: dolarFetch, buy: { enabled: true, payFetch: upstream } });
+    const app = createApp({ payTo: PAY_TO, facilitatorClient: fac, fetchImpl: dolarFetch, buy: { enabled: true, payFetch: upstream, localGuard: true } });
     const { payFetch } = makePayFetch({ privateKey: generatePrivateKey(), asset: 'USDC', baseFetch: (i, init) => app.fetch(new Request(i, init)) });
     const r = await payFetch('http://x/ar/brief');
     expect(r.status).toBe(502); expect(fac.settle).not.toHaveBeenCalled();
   });
   it('/ar/brief: bad lang is rejected free, before any payment', async () => {
     const fac = mockFacilitator();
-    const app = createApp({ payTo: PAY_TO, facilitatorClient: fac, buy: { enabled: true, payFetch: vi.fn() } });
+    const app = createApp({ payTo: PAY_TO, facilitatorClient: fac, buy: { enabled: true, payFetch: vi.fn(), localGuard: true } });
     const r = await app.request('http://x/ar/brief?lang=fr');
     expect(r.status).toBe(400); expect(fac.verify).not.toHaveBeenCalled();
   });
@@ -146,5 +147,94 @@ describe('Build with buy (upstream purchase, flagged)', () => {
     const q = await quote(gw.fetchImpl);
     expect(q.status).toBe(402); expect(q.offers.map(o => o.amount)).toEqual(['10000', '10000', '10000']);
     expect(gw.calls.every(c => !c.payment)).toBe(true);
+  });
+});
+
+describe('Replay lock + global budget for /ar/brief (Zealynx review)', () => {
+  // Capture one real signed payment header, then replay it.
+  async function signedHeader(app) {
+    let hdr = null;
+    const spy = (i, init) => { const req = new Request(i, init); hdr ||= req.headers.get('payment-signature') || req.headers.get('x-payment'); return app.fetch(req); };
+    const { payFetch } = makePayFetch({ privateKey: generatePrivateKey(), asset: 'USDC', baseFetch: spy });
+    const r = await payFetch('http://x/ar/brief?lang=es');
+    return { r, hdr };
+  }
+  const setup = (guard, gwOpts) => {
+    const fac = mockFacilitator(); const gw = mockGateway(gwOpts);
+    const { payFetch: upstream } = makeBuyer({ privateKey: generatePrivateKey(), asset: 'USAT', baseFetch: gw.fetchImpl });
+    const buy = { enabled: true, payFetch: upstream, ...(guard ? { guard } : { localGuard: true }) };
+    return { fac, gw, app: createApp({ payTo: PAY_TO, facilitatorClient: fac, fetchImpl: dolarFetch, buy }) };
+  };
+  const bought = gw => gw.calls.filter(c => c.payment).length;
+
+  it('enabled with a key but no guard stays off (fail closed)', async () => {
+    const app = createApp({ payTo: PAY_TO, facilitatorClient: mockFacilitator(), buy: { enabled: true, payFetch: vi.fn() } });
+    expect((await app.request('http://x/ar/brief')).status).toBe(404);
+  });
+  it('paymentKey reads payer + nonce from v1/v2 headers and refuses junk', () => {
+    const from = '0x' + '11'.repeat(20), nonce = '0x' + 'aa'.repeat(32);
+    const h = Buffer.from(JSON.stringify({ payload: { authorization: { from, nonce } } })).toString('base64');
+    expect(paymentKey(h)).toBe(`${from}:${nonce}`);
+    expect(paymentKey('not base64 json')).toBe(null); expect(paymentKey(undefined)).toBe(null);
+    expect(paymentKey(Buffer.from(JSON.stringify({ payload: { authorization: { from, nonce: '0x12' } } })).toString('base64'))).toBe(null);
+  });
+  it('a replayed payment is refused with 409 and buys nothing more', async () => {
+    const { app, gw, fac } = setup();
+    const { r, hdr } = await signedHeader(app);
+    expect(r.status).toBe(200); expect(hdr).toBeTruthy(); expect(bought(gw)).toBe(1);
+    const again = await app.request('http://x/ar/brief?lang=es', { headers: { 'payment-signature': hdr, 'x-payment': hdr } });
+    expect(again.status).toBe(409); expect((await again.json()).error).toBe('payment_already_used');
+    expect(bought(gw)).toBe(1); expect(fac.settle).toHaveBeenCalledTimes(1);
+  });
+  it('the same payment sent 5 times in parallel buys exactly one completion', async () => {
+    const shared = memoryGuard(100);
+    const a = setup(shared); const { hdr } = await signedHeader(a.app); // first use claims the key
+    const b = setup(shared); // a second "isolate" sharing the same global guard
+    const rs = await Promise.all(Array.from({ length: 5 }, () => b.app.request('http://x/ar/brief?lang=es', { headers: { 'payment-signature': hdr, 'x-payment': hdr } })));
+    expect(rs.every(x => x.status === 409)).toBe(true); expect(bought(b.gw)).toBe(0);
+  });
+  it('race: a never-used payment sent 5 times at once is served once, refused 4 times', async () => {
+    const { hdr } = await signedHeader(setup().app); // signed against another app; unused in b's guard
+    const b = setup(memoryGuard(100));
+    const rs = await Promise.all(Array.from({ length: 5 }, () => b.app.request('http://x/ar/brief?lang=es', { headers: { 'payment-signature': hdr, 'x-payment': hdr } })));
+    expect(rs.map(x => x.status).sort()).toEqual([200, 409, 409, 409, 409]); expect(bought(b.gw)).toBe(1);
+  });
+  it('fresh parallel payments: one purchase each, no more', async () => {
+    const { app, gw } = setup();
+    const rs = await Promise.all([1, 2, 3].map(() => signedHeader(app)));
+    expect(rs.every(x => x.r.status === 200)).toBe(true); expect(bought(gw)).toBe(3);
+  });
+  it('the daily budget is global: two isolates sharing one guard stop at the cap', async () => {
+    const shared = memoryGuard(2);
+    const a = setup(shared), b = setup(shared);
+    expect((await signedHeader(a.app)).r.status).toBe(200);
+    expect((await signedHeader(b.app)).r.status).toBe(200);
+    const third = await signedHeader(a.app);
+    expect(third.r.status).toBe(503); expect(bought(a.gw) + bought(b.gw)).toBe(2);
+    expect(a.fac.settle).toHaveBeenCalledTimes(1); // the refused call is not settled
+  });
+  it('budget resets on a new UTC day', async () => {
+    let t = Date.parse('2026-10-26T23:59:00Z');
+    const g = memoryGuard(1, { now: () => t });
+    expect(await g.take()).toBe(true); expect(await g.take()).toBe(false);
+    t = Date.parse('2026-10-27T00:01:00Z'); expect(await g.take()).toBe(true);
+  });
+  it('BriefGuard Durable Object + durableGuard client: claim once, global budget, junk refused', async () => {
+    const store = new Map(); let alarm = null;
+    const storage = { get: async k => store.get(k), put: async (k, v) => { store.set(k, v); }, list: async () => new Map(store),
+      delete: async ks => { for (const k of ks) store.delete(k); }, getAlarm: async () => alarm, setAlarm: async t => { alarm = t; } };
+    const obj = new BriefGuard({ storage });
+    const ns = { idFromName: n => n, get: () => ({ fetch: (u, init) => obj.fetch(new Request(u, init)) }) };
+    const g = durableGuard(ns, 2);
+    expect(await g.claim('0xa:0x1')).toBe(true); expect(await g.claim('0xa:0x1')).toBe(false); expect(await g.claim('')).toBe(false);
+    expect(await g.take()).toBe(true); expect(await g.take()).toBe(true); expect(await g.take()).toBe(false);
+    expect(alarm).toBeGreaterThan(Date.now());
+    store.set('k:old', Date.now() - 1); store.set('d:2000-01-01', 5); await obj.alarm();
+    expect(store.has('k:old')).toBe(false); expect(store.has('d:2000-01-01')).toBe(false); expect(store.has('k:0xa:0x1')).toBe(true);
+  });
+  it('durableGuard fails closed when the Durable Object errors', async () => {
+    const ns = { idFromName: n => n, get: () => ({ fetch: async () => new Response('boom', { status: 500 }) }) };
+    const g = durableGuard(ns, 5);
+    expect(await g.claim('k')).toBe(false); expect(await g.take()).toBe(false);
   });
 });

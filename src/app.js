@@ -7,7 +7,8 @@ import { ExactEvmScheme } from '@x402/evm/exact/server';
 import { getAddress, isAddress } from 'viem';
 import { ASSETS, CELO_MAINNET, FACILITATOR_MAINNET, routeTable, x402Routes } from './pricing.js';
 import * as d from './data.js';
-import { BUY_SERVICE, briefPrompt, buyCompletion, dailyBudget, makeBuyer } from './buy.js';
+import { BUY_SERVICE, briefPrompt, buyCompletion, makeBuyer } from './buy.js';
+import { memoryGuard, paymentKey } from './guard.js';
 
 const PAID = {
   '/ar/dolar': { parse: d.parseDolar, run: (i, f) => d.getDolar(i, f) },
@@ -58,16 +59,23 @@ export function createApp(cfg) {
   }
   // ---- optional upstream purchases (flag) ----
   let buyer = null;
-  if (cfg.buy && cfg.buy.enabled && (cfg.buy.payFetch || cfg.buy.privateKey)) {
+  // Needs a replay lock + global budget (cfg.buy.guard, see src/guard.js). Without one it stays off,
+  // unless cfg.buy.localGuard is set (single process only: local Node server and tests).
+  const guard = cfg.buy && (cfg.buy.guard || (cfg.buy.localGuard ? memoryGuard(Number(cfg.buy.maxCallsPerDay) || 20) : null));
+  if (cfg.buy && cfg.buy.enabled && guard && (cfg.buy.payFetch || cfg.buy.privateKey)) {
     const pf = cfg.buy.payFetch || makeBuyer({ privateKey: cfg.buy.privateKey, asset: cfg.buy.asset || 'USAT' }).payFetch;
-    buyer = { payFetch: pf, asset: cfg.buy.asset || 'USAT', budget: dailyBudget(Number(cfg.buy.maxCallsPerDay) || 20) };
+    buyer = { payFetch: pf, asset: cfg.buy.asset || 'USAT', guard };
   }
   const PAID_ALL = buyer ? { ...PAID, '/ar/brief': {
     parse: q => { const lang = String(q.lang || 'es').toLowerCase(); return ['es', 'en'].includes(lang) ? { ok: true, input: { lang } } : { ok: false, error: 'lang_must_be_es_or_en', status: 400 }; },
-    run: async (i, f) => {
+    run: async (i, f, c) => {
+      // Replay lock BEFORE spending: one upstream purchase per caller payment (payer + nonce).
+      const key = paymentKey(c && (c.req.header('payment-signature') || c.req.header('x-payment')));
+      if (!key) return { ok: false, error: 'payment_key_unreadable', status: 400 };
+      if (!(await buyer.guard.claim(key))) return { ok: false, error: 'payment_already_used', status: 409 };
       const dol = await d.getDolar({ casa: 'all' }, f);
       if (!dol.ok) return dol;
-      if (!buyer.budget.take()) return { ok: false, error: 'brief_daily_budget_reached', status: 503 };
+      if (!(await buyer.guard.take())) return { ok: false, error: 'brief_daily_budget_reached', status: 503 };
       const b = await buyCompletion(buyer.payFetch, briefPrompt(dol.data, i.lang));
       // Upstream failure -> our handler returns >= 400, so the caller's payment is NOT settled.
       if (!b.ok) return { ok: false, error: `upstream_${b.error}`, status: 502 };
@@ -123,7 +131,7 @@ export function createApp(cfg) {
 
   for (const [p, h] of Object.entries(PAID_ALL)) {
     app.get(base + p, async c => {
-      const r = await h.run(c.get('input'), cfg.fetchImpl);
+      const r = await h.run(c.get('input'), cfg.fetchImpl, c);
       if (!r.ok) return c.json({ error: r.error, charged: false }, r.status);
       return c.json(r.data);
     });

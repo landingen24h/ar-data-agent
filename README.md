@@ -11,6 +11,22 @@ approval (EIP-2612), so a wallet holding only wARS can pay.
 
 Built for the *Agents on Open Rails* hackathon, track **Stable Agents: LatAm (Ripio x Celo)**.
 
+## At a glance
+
+| | |
+|---|---|
+| Live endpoint (Celo mainnet) | <https://landingen24h.com/celo/> (catalog: `/celo/prices`) |
+| ERC-8004 identity | **agentId 9988** on the Celo IdentityRegistry `0x8004A169FB4a3325136EB29fA0ceB6D2e539a432` |
+| Registration file | <https://landingen24h.com/celo/.well-known/agent-registration.json> |
+| PayTo / agent wallet | `0xb6d00A148AD63Fd9CCDd484B687c6012bA1561E1` (pinned in code, see Security) |
+| Payment | x402 v2 on `eip155:42220` via `https://api.x402.celo.org`; wARS (Permit2, gas sponsored) or USDC / USD₮ / USA₮ (EIP-3009) |
+| Attribution | ERC-8021 code `celo_85d42ed6ebcf` |
+| Paid routes | `/ar/dolar`, `/ar/inflacion`, `/ar/feriados`, `/ar/cuit`, `/ar/cbu` (10 to 15 wARS, or 0.01 USD) |
+| Pay in one line | `BUYER_PRIVATE_KEY=0x... node scripts/pay.js "https://landingen24h.com/celo/ar/dolar?casa=blue"` |
+| MCP | `npx -y github:landingen24h/ar-data-agent` (quote mode without a key) |
+| Tests | `npm test` (offline, mock facilitator) |
+| Built and operated by | Landing en 24h, an AI agent business (code, deploys and this README are agent-written) |
+
 ## What it sells
 
 | Route (GET) | Price | Alt. price | What you get |
@@ -117,7 +133,14 @@ call in USA₮ (or USD₮/USDC), paid over x402 from the agent's own wallet (`sr
 - Spend rails before anything is signed: only the Buy gateway's payTo, only Celo, only the chosen
   token, a hard 0.01 per-payment cap and a daily call budget.
 - If the upstream call fails, `/ar/brief` answers 502 and the caller's payment is never settled.
-- Off unless `BUY_ENABLED=1` and `BUY_PRIVATE_KEY` are set (optional `BUY_ASSET`, `BUY_MAX_PER_DAY`).
+- Replay lock: before buying, the agent claims the caller's payment key (payer + EIP-3009 nonce) in a
+  global store and refuses a key it has seen (`409 payment_already_used`), so one caller payment can
+  never trigger more than one upstream purchase, even when replayed in parallel before it settles.
+- The daily budget is global, not per isolate: on Workers both checks run in one Durable Object
+  (`BriefGuard` in `src/guard.js`, binding `BRIEF_GUARD`), which serializes them.
+- Off unless `BUY_ENABLED=1`, `BUY_PRIVATE_KEY` **and** the `BRIEF_GUARD` binding are set (optional
+  `BUY_ASSET`, `BUY_MAX_PER_DAY`). Without the guard the route stays off (fail closed).
+  **Status: off in production** (`/celo/ar/brief` answers 404); the one-time mainnet proof is above.
   Dry-run the live quote with `node scripts/buy-proof.js` (signs nothing).
 
 ## Use it
@@ -191,6 +214,19 @@ now and costs 10 to 15 wARS per call. Open an issue in this repo if you need a r
 not here (another rate, a province holiday calendar, a different validation); reasonable
 requests get built. Live description: <https://landingen24h.com/celo/?r=gh-readme>.
 
+## Security review
+
+Feedback from Zealynx on the Celo forum (26 Oct 2026), and what changed:
+
+1. **Pin payTo in the client scripts and MCP server** so a changed `AR_AGENT_URL` cannot redirect
+   payments: done in `f7868d6` (override only through an explicit `AR_AGENT_PAY_TO`).
+2. **Lock the caller's payment nonce before buying upstream in `/ar/brief`**: done (`src/guard.js`),
+   with tests for sequential replay, a 5-way parallel race and cross-isolate replay.
+3. **`dailyBudget` was per isolate**: replaced by a global per-UTC-day budget in the same Durable
+   Object; an error from the guard refuses the purchase.
+
+Found a problem? Open an issue.
+
 ## Tests
 
 `npm test` covers the validators and data shaping (CUIT, CBU, dolar, inflacion, feriados
@@ -198,7 +234,7 @@ incl. business days across holidays and year end), prices in base units, the 402
 (wARS first, Permit2 + gas sponsoring), a full signed payment through the official client
 against a mock facilitator, no settlement on upstream failure, free rejection of bad
 input, the attribution code, the wallet client tagging every transaction exactly once, and
-the `builder-code` declaration on every paid route. `npm run test:live` also sends a
+the `builder-code` declaration on every paid route, and the `/ar/brief` replay lock and global budget. `npm run test:live` also sends a
 wARS payment signed by a fresh empty wallet to the real Celo facilitator's `/verify`,
 which accepts the Permit2 and EIP-2612 signatures and fails only at the balance transfer.
 
