@@ -1,0 +1,13 @@
+Footage
+  Manhatta (1921), by Paul Strand and Charles Sheeler. Silent short film, public domain (published in the United States in 1921).
+  Wikimedia Commons: https://commons.wikimedia.org/wiki/File:Manhatta_(1921).webm
+  Used: 25 cuts between 17.5 s and 590 s of the 607 s file, cropped to 9:16 (405x720 out of the 944x720 picture) and scaled to 1080x1920. No intertitles used.
+
+Music
+  Maple Leaf Rag, composed by Scott Joplin (1899), played by Scott Joplin on a 1916 piano roll. Public domain.
+  Wikimedia Commons: https://commons.wikimedia.org/wiki/File:Maple_leaf_rag_-_played_by_Scott_Joplin_1916_V2.ogg
+  Used: 0.000 s to 46.833 s, gain +4.5 dB, limiter at -1.5 dBFS, 2 s fade out at the end.
+
+File sizes as downloaded: manhatta_1921.webm 204263763 bytes, maple_leaf_rag_joplin_1916.ogg 2082809 bytes.
+
+Nothing else is in the film: no logos, no added text, no other footage or sound.

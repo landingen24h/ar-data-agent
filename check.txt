@@ -1,0 +1,6 @@
+format: h264 1080x1920 30/1 fps, 46.833 s, 1405 frames
+black segments (>=1 frame, pix_th 0.10): 0
+frozen segments (>=0.5 s, noise 0.001): 0
+true peak: -2.7 dBFS (limit -1.0)
+planned cuts found in the film by scene detection (within 1 frame): 24/24
+cut to nearest detected beat: max 16 ms (frame grid 33 ms)
