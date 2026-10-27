@@ -1,15 +1,20 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import zlib from 'node:zlib';
 import { loadAgent, decodeDataUri, ipfsToHttp, readRegistration, describe, httpRpc, httpFetchJson, parseAgentId, summarise } from '../viewer.js';
 import { REGISTRIES, DEFAULT_GATEWAY, KOGNAI_TEST_IDENTITY } from '../config.js';
 
 // Real eth_call answers from the public Base and Base Sepolia RPCs, recorded 2026-10-23 at a fixed block.
 const REC = JSON.parse(fs.readFileSync(new URL('../fixtures/rpc.json', import.meta.url)));
 const SEPOLIA_2 = JSON.parse(fs.readFileSync(new URL('../fixtures/sepolia-2.json', import.meta.url)));
+// The fixture stores calldata and results as base64(deflate(bytes)), see fixtures/rpc.json "encoding".
+const pack = (h) => zlib.deflateSync(Buffer.from(h.slice(2), 'hex'), { level: 9 }).toString('base64');
+const unpack = (b) => '0x' + zlib.inflateSync(Buffer.from(b, 'base64')).toString('hex');
 const replay = (net) => async (method, [{ to, data }]) => {
   assert.equal(method, 'eth_call');
-  const hit = REC.calls[net][`${to}|${data}`.toLowerCase()];
+  const rec = REC.calls[net][`${to.toLowerCase()}|${pack(data.toLowerCase())}`];
+  const hit = rec && (rec.result !== undefined ? { ...rec, result: unpack(rec.result) } : rec);
   if (!hit) throw new Error(`no recording for ${to} ${data.slice(0, 10)}`);
   if (hit.error) throw Object.assign(new Error(hit.error.message), { code: hit.error.code });
   return hit.result;
