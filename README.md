@@ -84,7 +84,7 @@ client ── GET /ar/dolar + PAYMENT-SIGNATURE ─────────▶ a
   (`0x8004A169FB4a3325136EB29fA0ceB6D2e539a432`) from its own wallet with
   `scripts/register-agent.js`; the registration file is served by the agent itself.
   Registered as **agentId 9988** (`eip155:42220:0x8004A169FB4a3325136EB29fA0ceB6D2e539a432`),
-  tx [`0x76a16796…f38f`](https://celoscan.io/tx/0x76a16796806af337295983a784ebea8e1b30d63633686c8250a7e097d852f38f),
+  tx `0x76a16796…f38f` ([agent wallet on Celoscan](https://celoscan.io/address/0xb6d00A148AD63Fd9CCDd484B687c6012bA1561E1)),
   agent URI `https://landingen24h.com/celo/.well-known/agent-registration.json`.
 - **ERC-8021 attribution tag:** the project's code is **`celo_85d42ed6ebcf`**, the code issued
   at hackathon enrollment (`src/attribution-code.js`, the single source of truth). It is attached
@@ -107,12 +107,12 @@ PayTo / agent wallet: `0xb6d00A148AD63Fd9CCDd484B687c6012bA1561E1`
   registration file at `/celo/.well-known/agent-registration.json`).
 - First end-to-end payment (our own test buyer wallet, holding only wARS and no CELO):
   `GET /celo/ar/dolar` paid **15 wARS**, settled by the Celo facilitator in
-  [`0xd1cd54e6…e7db`](https://celoscan.io/tx/0xd1cd54e6ff941f12d4d4a6a3caf9cca0a240bce38f6dd2f0fc29c42fb762e7db)
+  `0xd1cd54e6…e7db` ([agent wallet on Celoscan](https://celoscan.io/address/0xb6d00A148AD63Fd9CCDd484B687c6012bA1561E1))
   (wARS `Transfer` 0x1731…6d72 → PayTo), HTTP 200 with the quotes JSON. This was a self-test,
   not a customer sale.
 - **Build with buy** proof: the agent bought one LLM completion from the Buy gateway
   (`gateway.usebuy.ai/cencori`) via x402, paying **0.01 USDT** on Celo in
-  [`0xeed25bea…dd9a`](https://celoscan.io/tx/0xeed25bea33216b9d180230cf6d12fd161efaeb59e12a7c002b14266f8d3bdd9a)
+  `0xeed25bea…dd9a` ([agent wallet on Celoscan](https://celoscan.io/address/0xb6d00A148AD63Fd9CCDd484B687c6012bA1561E1))
   (`scripts/buy-proof.js`, receipt `success: true`).
 
 ### USA₮ accepted
