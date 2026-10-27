@@ -1,0 +1,102 @@
+{
+ "endpoint": "POST https://landingen24h.com/script",
+ "request": {
+  "fable": "The Lion and the Mouse",
+  "notes": "Keep every key event of the original fable, in order: the lion catches the mouse, the mouse asks to be let go and promises to help one day, the lion laughs and lets it go; later hunters leave a rope net, the lion is caught, the mouse hears him and gnaws the ropes, the lion is free. No hunters shown on screen. Aim for about 60 seconds. Character look lines should be concrete enough for an AI video model to keep the characters consistent from shot to shot."
+ },
+ "agent": "landingen24h-script-writer 0.1.0",
+ "model": "@cf/openai/gpt-oss-120b",
+ "checks": {
+  "passed": true,
+  "total_seconds": 56,
+  "scenes": 8,
+  "max_scene_seconds": 7,
+  "attempts": 2
+ },
+ "ms": 50857,
+ "script": {
+  "title": "The Lion and the Mouse",
+  "fable": "The Lion and the Mouse",
+  "premise": "A big lion learns a tiny friend can be a great help.",
+  "moral": "Kindness comes back.",
+  "scenes": [
+   {
+    "seconds": 7,
+    "shot": "Wide shot of bright savanna, slow pan left",
+    "see": "A large lion lies curled on a warm rock, eyes closed, gentle breeze rustles grass",
+    "narration": "A calm morning",
+    "dialogue": "",
+    "sound": "soft wind, distant birds"
+   },
+   {
+    "seconds": 7,
+    "shot": "Medium shot, camera follows mouse as it darts near lion, then pans to lion paw",
+    "see": "A tiny brown mouse scurries across grass, the lion lifts a paw and gently catches it",
+    "narration": "The lion catches the mouse",
+    "dialogue": "Mouse: Please let me go",
+    "sound": "quick footsteps, light rustle"
+   },
+   {
+    "seconds": 7,
+    "shot": "Close-up on lion and mouse, slight push in",
+    "see": "The mouse trembles, the lion chuckles softly and opens his paw",
+    "narration": "The lion laughs and releases the mouse",
+    "dialogue": "Lion: I will let you go",
+    "sound": "soft chuckle, gentle sigh"
+   },
+   {
+    "seconds": 7,
+    "shot": "Wide shot, static camera as lion walks near bushes, rope net lies hidden",
+    "see": "The lion steps onto a thin rope net, the ropes tighten around his paws",
+    "narration": "Later the lion is caught",
+    "dialogue": "",
+    "sound": "soft snap of rope"
+   },
+   {
+    "seconds": 7,
+    "shot": "Medium shot, camera tilts up to lion's face, then pans to grass",
+    "see": "The lion growls low, a small mouse nearby lifts ears and looks toward the sound",
+    "narration": "The mouse hears the lion",
+    "dialogue": "Mouse: I will help!",
+    "sound": "low growl, tiny footsteps"
+   },
+   {
+    "seconds": 7,
+    "shot": "Close-up on mouse teeth, slow zoom out to show rope",
+    "see": "The mouse nibbles the rope, fibers break and loosen",
+    "narration": "",
+    "dialogue": "",
+    "sound": "soft nibble, tearing thread"
+   },
+   {
+    "seconds": 7,
+    "shot": "Wide shot, camera pulls back as rope falls, lion stands free",
+    "see": "The rope snaps, the lion steps out, the mouse hops nearby, both smile",
+    "narration": "Friends rescue each other",
+    "dialogue": "",
+    "sound": "light rustle, happy chime"
+   },
+   {
+    "seconds": 7,
+    "shot": "Medium shot, gentle pan right as lion nudges mouse",
+    "see": "The lion gently nudges the mouse, they walk together across the grass",
+    "narration": "",
+    "dialogue": "",
+    "sound": "soft breeze, birds"
+   }
+  ],
+  "characters": [
+   {
+    "name": "Lion",
+    "look": "Large tawny lion, golden mane, soft brown eyes, calm expression",
+    "voice": "Deep gentle voice"
+   },
+   {
+    "name": "Mouse",
+    "look": "Small brown mouse, bright eyes, twitching whiskers, tiny paws",
+    "voice": "High sweet voice"
+   }
+  ]
+ },
+ "note": "Operator run on 2026-10-24, same code path as paid calls, no payment taken."
+}
