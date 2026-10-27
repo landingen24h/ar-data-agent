@@ -18,7 +18,7 @@ test('A1 digests match sha256 of the given texts (UTF-8)', () => {
   assert.equal(a.digests.charter, sha(texts.charter));
   assert.equal(a.digests.constitution, sha(texts.constitution));
   assert.equal(a.digests.soul, sha(texts.soul));
-  assert.equal(sha256Hex(''), '0xe3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855');
+  assert.equal(sha256Hex(''), '0xe3b0c44298fc1c149afbf4c8996fb924' + '27ae41e4649b934ca495991b7852b855');
 });
 
 test('A2 the schema string and its UID are stable', () => {
