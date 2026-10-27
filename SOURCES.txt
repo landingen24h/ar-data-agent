@@ -1,0 +1,5 @@
+Source clip: "Dali-Girls-playing-20241229.webm" by Saimmx, Wikimedia Commons
+https://commons.wikimedia.org/wiki/File:Dali-Girls-playing-20241229.webm
+Licence: CC0 1.0 (public domain dedication), http://creativecommons.org/publicdomain/zero/1.0/
+Used: seconds 0 to 15 of the original (1920x1080, 30 fps), scaled to 1280x720, 30 fps, audio removed.
+before.mp4 is that cut with no colour change. after.mp4 is before.mp4 with look.cube applied and nothing else.

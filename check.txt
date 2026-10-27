@@ -1,0 +1,10 @@
+PSNR after.mp4 vs before.mp4+look.cube:
+average:inf
+SSIM:
+All:1.000000
+before.mp4 luma stats (YMIN/YMAX lowest/highest over frames, mean YAVG):
+ frames 450 YMIN min 2.0 YMAX max 255.0 YAVG mean 115.7 YAVG per second range 112.1-117.6 U/V mean 125.9/129.7
+after.mp4 luma stats (YMIN/YMAX lowest/highest over frames, mean YAVG):
+ frames 450 YMIN min 3.0 YMAX max 255.0 YAVG mean 115.6 YAVG per second range 111.8-117.6 U/V mean 118.7/133.8
+before.mp4 frames sampled 30 crushed(<=16) 0.040% clipped(>=235) 0.892% p1 28 p99 228
+after.mp4 frames sampled 30 crushed(<=16) 0.045% clipped(>=235) 0.855% p1 27 p99 228
