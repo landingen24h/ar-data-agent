@@ -1,0 +1,52 @@
+{
+  "name": "@godman-protocols/lax",
+  "version": "0.4.0",
+  "description": "Linked Agent eXchange \u2014 agent capability discovery protocol",
+  "type": "module",
+  "main": "dist/index.js",
+  "exports": "./dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build",
+    "test": "npx tsx smoke.test.ts && npx tsx --test jobs.test.ts",
+    "typecheck": "tsc --noEmit",
+    "test:live": "LAX_LIVE=1 npx tsx --test jobs.test.ts"
+  },
+  "keywords": [
+    "agent-discovery",
+    "capability-discovery",
+    "a2a",
+    "lax-offer",
+    "erc-8004",
+    "x402",
+    "godman-protocols",
+    "multi-agent"
+  ],
+  "author": "SkinGem",
+  "license": "Apache-2.0",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Godman-s/lax.git"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "tsx": "^4.7.0"
+  },
+  "dependencies": {},
+  "homepage": "https://github.com/Godman-s/lax#readme",
+  "bugs": {
+    "url": "https://github.com/Godman-s/lax/issues"
+  }
+}
