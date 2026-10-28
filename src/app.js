@@ -3,6 +3,7 @@
 import { Hono } from 'hono';
 import { paymentMiddleware, x402ResourceServer } from '@x402/hono';
 import { HTTPFacilitatorClient } from '@x402/core/server';
+import { bazaarResourceServerExtension } from '@x402/extensions/bazaar';
 import { ExactEvmScheme } from '@x402/evm/exact/server';
 import { getAddress, isAddress } from 'viem';
 import { ASSETS, CELO_MAINNET, FACILITATOR_MAINNET, routeTable, x402Routes } from './pricing.js';
@@ -86,6 +87,7 @@ export function createApp(cfg) {
 
   const server = new x402ResourceServer(facilitator);
   server.register('eip155:*', new ExactEvmScheme());
+  server.registerExtension(bazaarResourceServerExtension); // fills the HTTP method into each route's bazaar discovery info
 
   const app = new Hono();
   const origin = c => cfg.publicUrl || new URL(c.req.url).origin;

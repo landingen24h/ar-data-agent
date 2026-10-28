@@ -6,7 +6,8 @@ import { custom, parseTransaction } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { celo } from 'viem/chains';
 import { createApp, rampUrl, registrationFile } from '../src/app.js';
-import { ASSETS, toBaseUnits, x402Routes } from '../src/pricing.js';
+import { ASSETS, DISCOVERY, toBaseUnits, x402Routes } from '../src/pricing.js';
+import { validateCbu, validateCuit } from '../src/data.js';
 import { ATTRIBUTION_CODE, taggedWalletClient } from '../src/attribution.js';
 import { registerCalldata } from '../scripts/register-agent.js';
 import { makePayFetch } from '../scripts/pay.js';
@@ -78,6 +79,22 @@ describe('payment gate', () => {
     expect(pr.accepts.map(a => a.asset)).toEqual([ASSETS.wARS.address, ASSETS.USDC.address, ASSETS.USDT.address, ASSETS.USAT.address]);
     expect(pr.accepts[0].amount).toBe('10000000000000000000');
     expect(pr.extensions.eip2612GasSponsoring).toBeTruthy();
+  });
+  it('402 carries bazaar discovery info (method, example query, output) for x402 catalogs', async () => {
+    const { app } = makeApp();
+    for (const [path, q] of [['/ar/cuit', 'cuit=20123456786'], ['/ar/dolar', 'casa=blue'], ['/ar/cbu', 'cbu=2850590909400123456785'], ['/ar/inflacion', ''], ['/ar/feriados', '']]) {
+      const r = await app.request(`http://x${path}?${q}`);
+      expect(r.status).toBe(402);
+      const bz = decode(r.headers.get('payment-required')).extensions.bazaar;
+      expect(bz.info.input.type).toBe('http'); expect(bz.info.input.method).toBe('GET');
+      expect(bz.info.input.queryParams).toEqual(DISCOVERY[path].input);
+      expect(bz.schema.type).toBe('object');
+    }
+  });
+  it('bazaar example outputs for CUIT and CBU match what the validators really return', () => {
+    const cu = validateCuit({ cuit: DISCOVERY['/ar/cuit'].input.cuit }), cb = validateCbu({ cbu: DISCOVERY['/ar/cbu'].input.cbu });
+    expect(cu).toMatchObject(DISCOVERY['/ar/cuit'].output.example);
+    expect(cb).toMatchObject(DISCOVERY['/ar/cbu'].output.example);
   });
   it('a signed USDC payment is verified, served and settled (mock facilitator)', async () => {
     const { app, fac } = makeApp();
