@@ -103,7 +103,12 @@ export function createApp(cfg) {
     buys: buyer ? [{ service: BUY_SERVICE.name, url: BUY_SERVICE.url, price_usd: '0.01', asset: buyer.asset, used_by: base + '/ar/brief' }] : [],
     source: 'https://github.com/landingen24h/ar-data-agent',
   });
-  app.get(base + '/', c => c.json(describe(c)));
+  // Browsers get a readable catalog; agents and curl keep the JSON (also forced with ?format=json).
+  app.get(base + '/', c => {
+    const d = describe(c);
+    const wantsHtml = (c.req.header('accept') || '').includes('text/html') && c.req.query('format') !== 'json';
+    return wantsHtml ? c.html(catalogHtml(d, origin(c) + base)) : c.json(d);
+  });
   app.get(base + '/health', c => c.json({ ok: true }));
   app.get(base + '/prices', c => c.json(describe(c).routes));
   app.get(base + '/ramp', c => {
@@ -153,4 +158,29 @@ export function registrationFile(url, agent) {
     registrations: agent && agent.agentId != null ? [{ agentId: Number(agent.agentId), agentRegistry: agent.registry }] : [],
     supportedTrust: ['reputation'],
   };
+}
+
+const esc = v => String(v ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+
+/** Human-readable catalog for people who open the agent URL in a browser. */
+export function catalogHtml(d, self) {
+  const rows = d.routes.map(r => `<tr><td><code>${esc(r.url.replace(self, ''))}</code></td><td>${esc(r.price_wars)} wARS</td><td>${esc(r.description)}</td><td>${r.query ? `<code>${esc(Object.keys(r.query).join(', '))}</code>` : ''}</td></tr>`).join('');
+  const first = d.routes[0] ? d.routes[0].url : self + '/ar/dolar';
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${esc(d.name)}: Argentine data, pay per call in pesos on Celo</title>
+<meta name="description" content="${esc(d.description)}">
+<style>body{font:16px/1.5 system-ui,sans-serif;max-width:860px;margin:2rem auto;padding:0 1rem;color:#1b1b1b}code,pre{background:#f3f3f0;border-radius:4px;padding:.1em .3em}pre{padding:.8em;overflow:auto}table{border-collapse:collapse;width:100%}td,th{border-bottom:1px solid #ddd;padding:.4em;text-align:left;vertical-align:top}a{color:#0a6b4f}</style></head><body>
+<h1>${esc(d.name)}</h1>
+<p>${esc(d.description)}</p>
+<h2>Paid routes</h2>
+<table><thead><tr><th>Route</th><th>Price</th><th>What you get</th><th>Query</th></tr></thead><tbody>${rows}</tbody></table>
+<h2>Try it</h2>
+<p>Without a payment the server answers <code>402 Payment Required</code> with the exact x402 terms (asset, amount, pay-to ${esc(d.payTo)}). Any x402 client on Celo pays and retries automatically; the payer needs no gas.</p>
+<pre>curl -i ${esc(first)}</pre>
+<p>Need wARS? <a href="${esc(d.get_wars)}">Get a Ripio ramp link</a> (ARS to wARS on Celo). Machine-readable catalog: <a href="${esc(self)}/?format=json">JSON</a>, <a href="${esc(self)}/prices">prices</a>, <a href="${esc(self)}/.well-known/agent-registration.json">ERC-8004 registration</a>.</p>
+<h2>Free live badges</h2>
+<p><img src="https://landingen24h.com/badge/dolar-blue.svg" alt="dolar blue"> <img src="https://landingen24h.com/badge/dolar-oficial.svg" alt="dolar oficial"> <img src="https://landingen24h.com/badge/dolar-mep.svg" alt="dolar MEP"></p>
+<pre>![dolar blue](https://landingen24h.com/badge/dolar-blue.svg)</pre>
+<p>Open source (MIT): <a href="${esc(d.source)}">${esc(d.source)}</a></p>
+</body></html>`;
 }

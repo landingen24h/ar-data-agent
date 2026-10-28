@@ -43,6 +43,15 @@ describe('free routes', () => {
     const j = await (await app.request('http://x/')).json();
     expect(j.payTo).toBe(PAY_TO); expect(j.routes).toHaveLength(5); expect(j.network).toBe('eip155:42220');
   });
+  it('serves an HTML catalog to browsers and JSON to agents', async () => {
+    const { app } = makeApp();
+    const h = await app.request('http://x/', { headers: { accept: 'text/html,application/xhtml+xml' } });
+    expect(h.headers.get('content-type')).toMatch(/text\/html/);
+    const body = await h.text();
+    expect(body).toContain('/ar/dolar'); expect(body).toContain('wARS'); expect(body).not.toContain('<script');
+    const j = await app.request('http://x/?format=json', { headers: { accept: 'text/html' } });
+    expect(j.headers.get('content-type')).toMatch(/application\/json/);
+  });
   it('builds a Ripio on-ramp link for wARS on Celo', async () => {
     expect(rampUrl({ address: PAY_TO, amount: 5000 })).toBe(`https://ramp.ripio.com/?country=AR&chain=42220&token=WARS&amount=5000&address=${PAY_TO}`);
     const { app } = makeApp();
