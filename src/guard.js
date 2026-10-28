@@ -18,6 +18,14 @@
 // the whole day's budget for everyone. take(payer) also takes one unit of that payer's own
 // per-UTC-day quota (default 2) in the same serialized step, so no single address can drain the
 // shared budget.
+//
+// Settle first (reported by Zealynx, 28 Oct 2026): verify checks the balance but does not hold it,
+// so funds could move to a fresh address after verify and before settle, after we had already
+// bought the completion. /ar/brief now settles BEFORE the handler (x402 "upfront" flow). The
+// replay lock and budget unit are taken before settle; if settle fails, release(payer) hands the
+// unit back (nothing was bought, so that costs nothing). If the upstream call fails AFTER the
+// caller paid, credit(token) issues a one-time retry token, redeemed once with redeem(token)
+// on the free /ar/brief/retry route, so a paid caller is never left without the brief.
 
 /** Payment key from an x402 payment header (v2 PAYMENT-SIGNATURE or v1 X-PAYMENT), or null. */
 export function paymentKey(header) {
@@ -61,13 +69,40 @@ export function guardLogic(kv, { maxPerDay, maxPerPayer = DEFAULT_MAX_PER_PAYER,
       await kv.put(k, used + 1);
       return true;
     },
+    async release(payer) {
+      const day = today(now()), k = 'd:' + day, used = Number((await kv.get(k)) || 0);
+      if (used > 0) await kv.put(k, used - 1);
+      const who = payerOf(payer);
+      if (who) { const pk = 'p:' + day + ':' + who, pu = Number((await kv.get(pk)) || 0); if (pu > 0) await kv.put(pk, pu - 1); }
+      return true;
+    },
+    async credit(token) {
+      if (!validToken(token)) return false;
+      await kv.put('c:' + token, now() + keyTtlMs);
+      return true;
+    },
+    async redeem(token) {
+      if (!validToken(token)) return false;
+      const k = 'c:' + token, exp = Number((await kv.get(k)) || 0);
+      if (!exp) return false;
+      await (kv.delete ? kv.delete(k) : kv.put(k, 0));
+      return exp > now();
+    },
   };
+}
+
+/** Retry tokens: 22 to 64 url-safe characters. */
+export const validToken = (t) => typeof t === 'string' && /^[A-Za-z0-9_-]{22,64}$/.test(t);
+/** New random retry token (url-safe base64, 24 bytes). */
+export function newToken() {
+  const b = new Uint8Array(24); crypto.getRandomValues(b);
+  return btoa(String.fromCharCode(...b)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
 /** Single-process guard (local Node server and tests). NOT global across Worker isolates. */
 // Synchronous check-and-set, so parallel requests in one process cannot interleave between get and put.
 export function memoryGuard(maxPerDay = 20, { now = () => Date.now(), maxPerPayer = DEFAULT_MAX_PER_PAYER } = {}) {
-  const keys = new Set(), days = new Map();
+  const keys = new Set(), days = new Map(), credits = new Set();
   return {
     async claim(key) { if (!key || keys.has(key)) return false; keys.add(key); return true; },
     async take(payer) {
@@ -77,6 +112,13 @@ export function memoryGuard(maxPerDay = 20, { now = () => Date.now(), maxPerPaye
       if (who) { const pk = d + ':' + who, pu = days.get(pk) || 0; if (pu >= maxPerPayer) return false; days.set(pk, pu + 1); }
       days.set(d, u + 1); return true;
     },
+    async release(payer) {
+      const d = today(now()); days.set(d, Math.max(0, (days.get(d) || 0) - 1));
+      const who = payerOf(payer); if (who) { const pk = d + ':' + who; days.set(pk, Math.max(0, (days.get(pk) || 0) - 1)); }
+      return true;
+    },
+    async credit(token) { if (!validToken(token)) return false; credits.add(token); return true; },
+    async redeem(token) { return validToken(token) && credits.delete(token); },
   };
 }
 
@@ -88,7 +130,8 @@ export function durableGuard(ns, maxPerDay = 20, maxPerPayer = DEFAULT_MAX_PER_P
     if (!r.ok) return false; // any error: refuse (fail closed, nothing bought)
     return (await r.json()).ok === true;
   };
-  return { claim: key => (key ? call('claim', key) : Promise.resolve(false)), take: (payer) => call('take', payer) };
+  return { claim: key => (key ? call('claim', key) : Promise.resolve(false)), take: (payer) => call('take', payer),
+    release: (payer) => call('release', payer), credit: (t) => call('credit', t), redeem: (t) => call('redeem', t) };
 }
 
 /** Durable Object: serializes claim/take for every isolate (input gates keep get+put atomic).
@@ -100,10 +143,13 @@ export class BriefGuard {
     const op = new URL(req.url).pathname.slice(1);
     const { key, maxPerDay, maxPerPayer } = await req.json().catch(() => ({}));
     const st = this.state.storage;
-    const g = guardLogic({ get: k => st.get(k), put: (k, v) => st.put(k, v) }, { maxPerDay: Number(maxPerDay) || 20, maxPerPayer: Number(maxPerPayer) || DEFAULT_MAX_PER_PAYER });
+    const g = guardLogic({ get: k => st.get(k), put: (k, v) => st.put(k, v), delete: k => st.delete([k]) }, { maxPerDay: Number(maxPerDay) || 20, maxPerPayer: Number(maxPerPayer) || DEFAULT_MAX_PER_PAYER });
     let ok = false;
     if (op === 'claim') ok = await g.claim(key);
     else if (op === 'take') ok = await g.take(key);
+    else if (op === 'release') ok = await g.release(key);
+    else if (op === 'credit') ok = await g.credit(key);
+    else if (op === 'redeem') ok = await g.redeem(key);
     else return new Response('not found', { status: 404 });
     if (st.getAlarm && !(await st.getAlarm())) await st.setAlarm(Date.now() + 86400e3);
     return Response.json({ ok });
@@ -111,7 +157,7 @@ export class BriefGuard {
   async alarm() {
     const st = this.state.storage, now = Date.now(), old = [];
     for (const [k, v] of await st.list()) {
-      if ((k.startsWith('k:') && Number(v) < now) || (k.startsWith('d:') && k.slice(2) < today(now - 86400e3)) || (k.startsWith('p:') && k.slice(2, 12) < today(now - 86400e3))) old.push(k);
+      if (((k.startsWith('k:') || k.startsWith('c:')) && Number(v) < now) || (k.startsWith('d:') && k.slice(2) < today(now - 86400e3)) || (k.startsWith('p:') && k.slice(2, 12) < today(now - 86400e3))) old.push(k);
     }
     for (let i = 0; i < old.length; i += 128) await st.delete(old.slice(i, i + 128));
     await st.setAlarm(now + 86400e3);

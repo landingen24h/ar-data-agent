@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.2 (2026-10-28)
+* /ar/brief settles the caller's payment BEFORE buying the completion (x402 "upfront" flow). Verify checks a balance but does not hold it, so funds could move to a fresh address between verify and settle after we had already paid upstream (feedback from the Celo forum). Other routes keep verify, handler, settle.
+* The replay lock and the daily budget unit are taken before settle, so a refused call is never charged. If settle fails, the unit is handed back (nothing was bought).
+* If the upstream purchase fails after the caller paid, the 502 answer carries a free one-time retry link (`/ar/brief/retry?token=...`, valid 48 h), so a paying caller is never left without the brief.
+
 ## 0.2.1 (2026-10-28)
 * Dockerfile and .dockerignore for the stdio MCP server, so MCP directories and users can build and run it in a container.
 * glama.json with the maintainer, for the Glama MCP directory.

@@ -145,7 +145,11 @@ call in USA₮ (or USD₮/USDC), paid over x402 from the agent's own wallet (`sr
 - The payer signs through the attribution-tagged wallet client (`taggedWalletClient`).
 - Spend rails before anything is signed: only the Buy gateway's payTo, only Celo, only the chosen
   token, a hard 0.01 per-payment cap and a daily call budget.
-- If the upstream call fails, `/ar/brief` answers 502 and the caller's payment is never settled.
+- Settle first: `/ar/brief` settles the caller's payment BEFORE buying upstream (x402 `upfront` flow,
+  `extra.paymentFlow` in the 402), because verify checks a balance but does not hold it. Replay lock
+  and budget unit are taken before settle, so a refused call is never charged; a failed settle hands
+  the unit back. If the upstream call then fails, the 502 carries a free one-time
+  `retry_url` (`/ar/brief/retry?token=...`, 48 h), so a paying caller still gets the brief.
 - Replay lock: before buying, the agent claims the caller's payment key (payer + EIP-3009 nonce) in a
   global store and refuses a key it has seen (`409 payment_already_used`), so one caller payment can
   never trigger more than one upstream purchase, even when replayed in parallel before it settles.
@@ -249,6 +253,8 @@ Feedback from Zealynx on the Celo forum (26 Oct 2026), and what changed:
    with tests for sequential replay, a 5-way parallel race and cross-isolate replay.
 3. **`dailyBudget` was per isolate**: replaced by a global per-UTC-day budget in the same Durable
    Object; an error from the guard refuses the purchase.
+4. **Funds can move between verify and settle** (one balance reused across fresh addresses):
+   `/ar/brief` now settles before the upstream purchase, with a one-time retry token if upstream fails.
 
 Found a problem? See [SECURITY.md](SECURITY.md) for how to report it privately; anything else, open an issue.
 

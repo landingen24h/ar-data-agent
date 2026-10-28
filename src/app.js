@@ -9,7 +9,7 @@ import { getAddress, isAddress } from 'viem';
 import { ASSETS, CELO_MAINNET, FACILITATOR_MAINNET, routeTable, x402Routes } from './pricing.js';
 import * as d from './data.js';
 import { BUY_SERVICE, briefPrompt, buyCompletion, makeBuyer } from './buy.js';
-import { memoryGuard, payerFromKey, paymentKey } from './guard.js';
+import { memoryGuard, newToken, payerFromKey, paymentKey } from './guard.js';
 
 const PAID = {
   '/ar/dolar': { parse: d.parseDolar, run: (i, f) => d.getDolar(i, f) },
@@ -67,20 +67,25 @@ export function createApp(cfg) {
     const pf = cfg.buy.payFetch || makeBuyer({ privateKey: cfg.buy.privateKey, asset: cfg.buy.asset || 'USAT' }).payFetch;
     buyer = { payFetch: pf, asset: cfg.buy.asset || 'USAT', guard };
   }
+  const origin = c => cfg.publicUrl || new URL(c.req.url).origin;
+  const briefBody = (lang, b, data) => ({ lang, brief: b.text, data, generated_by: { service: BUY_SERVICE.name, model: BUY_SERVICE.model, paid_with: buyer.asset, upstream_receipt: b.receipt }, note: 'AI-written summary of the quotes included below; not financial advice.' });
+  // The caller already paid: give a one-time retry token instead of leaving them with nothing.
+  const briefFailed = async (lang, err, c, token) => {
+    const t = token || newToken();
+    const ok = await buyer.guard.credit(t);
+    const retry = ok && c ? `${origin(c)}${base}/ar/brief/retry?token=${t}&lang=${lang}` : null;
+    return { ok: false, error: `upstream_${err}`, status: 502, charged: true, retry_url: retry, retry_note: retry ? 'Free, one use, valid 48 h.' : undefined };
+  };
   const PAID_ALL = buyer ? { ...PAID, '/ar/brief': {
     parse: q => { const lang = String(q.lang || 'es').toLowerCase(); return ['es', 'en'].includes(lang) ? { ok: true, input: { lang } } : { ok: false, error: 'lang_must_be_es_or_en', status: 400 }; },
+    // Runs after the caller's payment is SETTLED (upfront flow). Replay lock and budget unit were
+    // taken by the pre-settle gate below, so here we only buy.
     run: async (i, f, c) => {
-      // Replay lock BEFORE spending: one upstream purchase per caller payment (payer + nonce).
-      const key = paymentKey(c && (c.req.header('payment-signature') || c.req.header('x-payment')));
-      if (!key) return { ok: false, error: 'payment_key_unreadable', status: 400 };
-      if (!(await buyer.guard.claim(key))) return { ok: false, error: 'payment_already_used', status: 409 };
+      if (c) c.set('briefRan', true);
       const dol = await d.getDolar({ casa: 'all' }, f);
-      if (!dol.ok) return dol;
-      if (!(await buyer.guard.take(payerFromKey(key)))) return { ok: false, error: 'brief_daily_budget_reached', status: 503 }; // global + per-payer quota
-      const b = await buyCompletion(buyer.payFetch, briefPrompt(dol.data, i.lang));
-      // Upstream failure -> our handler returns >= 400, so the caller's payment is NOT settled.
-      if (!b.ok) return { ok: false, error: `upstream_${b.error}`, status: 502 };
-      return { ok: true, data: { lang: i.lang, brief: b.text, data: dol.data, generated_by: { service: BUY_SERVICE.name, model: BUY_SERVICE.model, paid_with: buyer.asset, upstream_receipt: b.receipt }, note: 'AI-written summary of the quotes included below; not financial advice.' } };
+      const b = dol.ok ? await buyCompletion(buyer.payFetch, briefPrompt(dol.data, i.lang)) : { ok: false, error: 'data_source' };
+      if (!b.ok) return briefFailed(i.lang, b.error, c);
+      return { ok: true, data: briefBody(i.lang, b, dol.data) };
     },
   } } : PAID;
   const ROUTES = routeTable(!!buyer);
@@ -90,7 +95,6 @@ export function createApp(cfg) {
   server.registerExtension(bazaarResourceServerExtension); // fills the HTTP method into each route's bazaar discovery info
 
   const app = new Hono();
-  const origin = c => cfg.publicUrl || new URL(c.req.url).origin;
 
   // ---- free routes ----
   const describe = c => ({
@@ -133,13 +137,37 @@ export function createApp(cfg) {
     });
   }
 
-  // ---- x402 payment gate (verify -> handler -> settle only if handler < 400) ----
+  if (buyer) {
+    // ---- /ar/brief pre-settle gate: replay lock + budget unit BEFORE the caller is charged ----
+    app.use(base + '/ar/brief', async (c, next) => {
+      const hdr = c.req.header('payment-signature') || c.req.header('x-payment');
+      if (!hdr) return next(); // no payment yet: the x402 middleware answers 402
+      const key = paymentKey(hdr);
+      if (!key) return c.json({ error: 'payment_key_unreadable', charged: false }, 400);
+      if (!(await buyer.guard.claim(key))) return c.json({ error: 'payment_already_used', charged: false }, 409);
+      const payer = payerFromKey(key);
+      if (!(await buyer.guard.take(payer))) return c.json({ error: 'brief_daily_budget_reached', charged: false }, 503); // global + per-payer quota
+      await next();
+      if (!c.get('briefRan')) await buyer.guard.release(payer); // settle failed: nothing bought, hand the unit back
+    });
+    // ---- free one-time retry for a paid call whose upstream purchase failed ----
+    app.get(base + '/ar/brief/retry', async c => {
+      const token = c.req.query('token'); const lang = String(c.req.query('lang') || 'es').toLowerCase();
+      if (!['es', 'en'].includes(lang)) return c.json({ error: 'lang_must_be_es_or_en' }, 400);
+      if (!(await buyer.guard.redeem(token))) return c.json({ error: 'retry_token_invalid_or_used' }, 403);
+      const dol = await d.getDolar({ casa: 'all' }, cfg.fetchImpl);
+      const b = dol.ok ? await buyCompletion(buyer.payFetch, briefPrompt(dol.data, lang)) : { ok: false, error: 'data_source' };
+      if (!b.ok) { const r = await briefFailed(lang, b.error, c, token); return c.json({ error: r.error, retry_url: r.retry_url }, 502); }
+      return c.json(briefBody(lang, b, dol.data));
+    });
+  }
+  // ---- x402 payment gate (verify -> handler -> settle only if handler < 400; /ar/brief settles first) ----
   app.use(paymentMiddleware(x402Routes(payTo, { basePath: base, network, buy: !!buyer }), server, undefined, undefined, cfg.syncFacilitatorOnStart ?? true));
 
   for (const [p, h] of Object.entries(PAID_ALL)) {
     app.get(base + p, async c => {
       const r = await h.run(c.get('input'), cfg.fetchImpl, c);
-      if (!r.ok) return c.json({ error: r.error, charged: false }, r.status);
+      if (!r.ok) return c.json({ error: r.error, charged: r.charged === true, ...(r.retry_url ? { retry_url: r.retry_url, retry_note: r.retry_note } : {}) }, r.status);
       return c.json(r.data);
     });
   }

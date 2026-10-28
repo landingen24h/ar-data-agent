@@ -125,13 +125,48 @@ describe('Build with buy (upstream purchase, flagged)', () => {
     const desc = await (await app.request('http://x/')).json();
     expect(desc.buys[0].url).toBe(BUY_SERVICE.url);
   });
-  it('/ar/brief: upstream failure means the caller is NOT charged', async () => {
-    const fac = mockFacilitator(); const gw = mockGateway({ upstreamStatus: 500 });
-    const { payFetch: upstream } = makeBuyer({ privateKey: generatePrivateKey(), asset: 'USAT', baseFetch: gw.fetchImpl });
+  it('/ar/brief: upstream failure after settle gives a one-time free retry token (paid caller is never left without the brief)', async () => {
+    const fac = mockFacilitator(); let down = true;
+    const gw = mockGateway();
+    const flaky = (i, init) => (down ? Promise.resolve(new Response('upstream down', { status: 500 })) : gw.fetchImpl(i, init));
+    const { payFetch: upstream } = makeBuyer({ privateKey: generatePrivateKey(), asset: 'USAT', baseFetch: flaky });
     const app = createApp({ payTo: PAY_TO, facilitatorClient: fac, fetchImpl: dolarFetch, buy: { enabled: true, payFetch: upstream, localGuard: true } });
     const { payFetch } = makePayFetch({ privateKey: generatePrivateKey(), asset: 'USDC', baseFetch: (i, init) => app.fetch(new Request(i, init)) });
     const r = await payFetch('http://x/ar/brief');
-    expect(r.status).toBe(502); expect(fac.settle).not.toHaveBeenCalled();
+    expect(r.status).toBe(502); expect(fac.settle).toHaveBeenCalledTimes(1);
+    const j = await r.json();
+    expect(j.charged).toBe(true); expect(j.retry_url).toMatch(/^http:\/\/x\/ar\/brief\/retry\?token=[A-Za-z0-9_-]{32}&lang=es$/);
+    down = false;
+    const ok = await app.request(j.retry_url);
+    expect(ok.status).toBe(200); expect((await ok.json()).brief).toMatch(/brecha/);
+    expect((await app.request(j.retry_url)).status).toBe(403); // one use only
+    expect((await app.request('http://x/ar/brief/retry?token=' + 'A'.repeat(32))).status).toBe(403); // unknown token
+    expect(fac.settle).toHaveBeenCalledTimes(1); // retries are free
+  });
+  it('/ar/brief settles BEFORE buying upstream (upfront flow, Zealynx 28 Oct)', async () => {
+    const order = []; const fac = mockFacilitator(); const gw = mockGateway();
+    const s0 = fac.settle.getMockImplementation(); fac.settle.mockImplementation(async (...a) => { order.push('settle'); return s0(...a); });
+    const spy = (i, init) => { const req = new Request(i, init); if (req.headers.get('payment-signature') || req.headers.get('x-payment')) order.push('buy'); return gw.fetchImpl(req); };
+    const { payFetch: upstream } = makeBuyer({ privateKey: generatePrivateKey(), asset: 'USAT', baseFetch: spy });
+    const app = createApp({ payTo: PAY_TO, facilitatorClient: fac, fetchImpl: dolarFetch, buy: { enabled: true, payFetch: upstream, localGuard: true } });
+    const pr = decode((await app.request('http://x/ar/brief')).headers.get('payment-required'));
+    expect(pr.accepts.every(a => a.extra.paymentFlow === 'upfront')).toBe(true);
+    const { payFetch } = makePayFetch({ privateKey: generatePrivateKey(), asset: 'USDC', baseFetch: (i, init) => app.fetch(new Request(i, init)) });
+    expect((await payFetch('http://x/ar/brief?lang=en')).status).toBe(200);
+    expect(order).toEqual(['settle', 'buy']); expect(fac.verify).not.toHaveBeenCalled();
+    const dol = decode((await app.request('http://x/ar/dolar')).headers.get('payment-required'));
+    expect(dol.accepts.every(a => a.extra.paymentFlow === undefined)).toBe(true); // other routes keep verify -> handler -> settle
+  });
+  it('/ar/brief: a failed settle (funds moved away after signing) buys nothing and hands the budget unit back', async () => {
+    const fac = mockFacilitator(); fac.settle.mockImplementation(async (p, r) => ({ success: false, errorReason: 'insufficient_funds', network: r.network, transaction: '' }));
+    const gw = mockGateway(); const guard = memoryGuard(1, { maxPerPayer: 1 });
+    const { payFetch: upstream } = makeBuyer({ privateKey: generatePrivateKey(), asset: 'USAT', baseFetch: gw.fetchImpl });
+    const app = createApp({ payTo: PAY_TO, facilitatorClient: fac, fetchImpl: dolarFetch, buy: { enabled: true, payFetch: upstream, guard } });
+    const pk = generatePrivateKey();
+    const { payFetch } = makePayFetch({ privateKey: pk, asset: 'USDC', baseFetch: (i, init) => app.fetch(new Request(i, init)) });
+    const r = await payFetch('http://x/ar/brief');
+    expect(r.status).toBe(402); expect(gw.calls.filter(c => c.payment).length).toBe(0);
+    expect(await guard.take(privateKeyToAccount(pk).address)).toBe(true); // global and per-payer unit came back
   });
   it('/ar/brief: bad lang is rejected free, before any payment', async () => {
     const fac = mockFacilitator();
@@ -250,6 +285,10 @@ describe('Replay lock + global budget for /ar/brief (Zealynx review)', () => {
     expect(alarm).toBeGreaterThan(Date.now());
     const pq = durableGuard(ns, 10, 1), P = '0x' + 'c'.repeat(40);
     expect(await pq.take(P)).toBe(true); expect(await pq.take(P)).toBe(false); // per-payer quota through the Durable Object
+    expect(await pq.release(P)).toBe(true); expect(await pq.take(P)).toBe(true); // a failed settle hands the unit back
+    const T = 'r'.repeat(32);
+    expect(await pq.credit(T)).toBe(true); expect(await pq.redeem(T)).toBe(true); expect(await pq.redeem(T)).toBe(false); // retry token: one use
+    expect(await pq.credit('bad token')).toBe(false); expect(await pq.redeem('x')).toBe(false);
     store.set('k:old', Date.now() - 1); store.set('d:2000-01-01', 5); store.set('p:2000-01-01:' + P, 1); await obj.alarm();
     expect(store.has('k:old')).toBe(false); expect(store.has('d:2000-01-01')).toBe(false); expect(store.has('p:2000-01-01:' + P)).toBe(false); expect(store.has('k:0xa:0x1')).toBe(true);
   });

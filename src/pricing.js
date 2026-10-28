@@ -71,12 +71,19 @@ export function acceptsFor(route, payTo, { network = CELO_MAINNET, includeUsd = 
 
 // Route table in the shape @x402/hono expects. The Permit2 route MUST declare
 // eip2612GasSponsoring or first-time payers get 412 permit2_allowance_required.
+/** Routes whose payment is settled before the handler runs. */
+export const UPFRONT_ROUTES = new Set(['/ar/brief']);
+
 export function x402Routes(payTo, opts = {}) {
   const base = opts.basePath || '';
   const out = {};
   for (const [path, r] of Object.entries(routeTable(!!opts.buy))) {
+    let accepts = acceptsFor(path, payTo, opts);
+    // /ar/brief spends our money upstream, so it settles the caller's payment BEFORE the handler
+    // ("upfront" flow): verify alone does not hold funds (Zealynx, Celo forum, 28 Oct 2026).
+    if (UPFRONT_ROUTES.has(path)) accepts = accepts.map(a => ({ ...a, price: { ...a.price, extra: { ...a.price.extra, paymentFlow: 'upfront' } } }));
     out[`GET ${base}${path}`] = {
-      accepts: acceptsFor(path, payTo, opts),
+      accepts,
       description: r.description,
       mimeType: 'application/json',
       extensions: {
