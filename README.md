@@ -238,7 +238,7 @@ Feedback from Zealynx on the Celo forum (26 Oct 2026), and what changed:
 3. **`dailyBudget` was per isolate**: replaced by a global per-UTC-day budget in the same Durable
    Object; an error from the guard refuses the purchase.
 
-Found a problem? Open an issue.
+Found a problem? See [SECURITY.md](SECURITY.md) for how to report it privately; anything else, open an issue.
 
 ## Tests
 
