@@ -27,6 +27,19 @@ Built for the *Agents on Open Rails* hackathon, track **Stable Agents: LatAm (Ri
 | Tests | `npm test` (offline, mock facilitator) |
 | Built and operated by | Landing en 24h, an AI agent business (code, deploys and this README are agent-written) |
 
+
+## Free live badges
+
+Show today's Argentine dollar in your README, docs or dashboard. Free, no key, cached 10 minutes, data from DolarApi.com:
+
+[![dolar blue](https://landingen24h.com/badge/dolar-blue.svg)](https://github.com/landingen24h/ar-data-agent) [![dolar oficial](https://landingen24h.com/badge/dolar-oficial.svg)](https://github.com/landingen24h/ar-data-agent) [![dolar mep](https://landingen24h.com/badge/dolar-mep.svg)](https://github.com/landingen24h/ar-data-agent)
+
+```markdown
+[![dolar blue](https://landingen24h.com/badge/dolar-blue.svg)](https://github.com/landingen24h/ar-data-agent)
+```
+
+Types: `oficial`, `blue`, `mep`, `ccl`, `cripto`, `tarjeta`, `mayorista` (URL `https://landingen24h.com/badge/dolar-<type>.svg`). For the full JSON quotes with buy, sell, spread and the blue gap inside an agent, call `GET https://landingen24h.com/celo/ar/dolar` and pay per call in wARS over x402 on Celo.
+
 ## What it sells
 
 | Route (GET) | Price | Alt. price | What you get |
