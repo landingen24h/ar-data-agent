@@ -43,7 +43,7 @@ async function call(path, params) {
 }
 
 const out = (o) => ({ content: [{ type: 'text', text: JSON.stringify(o, null, 2) }] });
-const server = new McpServer({ name: 'ar-data-agent', version: '0.2.0' });
+const server = new McpServer({ name: 'ar-data-agent', version: '0.2.1' });
 
 server.tool('ar_dolar', 'Argentina USD/ARS quotes (oficial, blue, MEP, CCL, cripto, tarjeta, mayorista) with spread and blue gap. 15 wARS per call.',
   { casa: z.enum(['all', 'oficial', 'blue', 'mep', 'ccl', 'cripto', 'tarjeta', 'mayorista']).optional() },

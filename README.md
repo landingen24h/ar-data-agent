@@ -219,6 +219,18 @@ The repo ships a stdio MCP server with six tools: `ar_dolar`, `ar_inflacion`,
   The payer needs no CELO: the Celo facilitator pays gas.
 - Use a dedicated low-balance wallet for the key, never your main one.
 
+### Run it with Docker
+
+The repo also has a `Dockerfile` for the same stdio server (Node 22, production dependencies only):
+
+```bash
+docker build -t ar-data-agent .
+docker run -i --rm ar-data-agent                                  # quote mode
+docker run -i --rm -e AR_AGENT_PRIVATE_KEY=0x... ar-data-agent    # paid mode
+```
+
+`-i` keeps stdin open, which an MCP stdio server needs.
+
 ## For other hackathon teams
 
 If your agent works with Argentina (payroll, invoices, remittances, pricing in pesos, contract

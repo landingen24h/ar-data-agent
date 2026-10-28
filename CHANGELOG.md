@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.1 (2026-10-28)
+* Dockerfile and .dockerignore for the stdio MCP server, so MCP directories and users can build and run it in a container.
+* glama.json with the maintainer, for the Glama MCP directory.
+* README: how to run it with Docker.
+
 ## 2026-10-28
 * SECURITY.md with the scope for payment vulnerabilities (verify and settle, pinned payTo, /ar/brief guard), linked from the README.
 * x402 bazaar discovery extension on every paid route (example query, input schema and sample output).

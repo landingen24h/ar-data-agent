@@ -1,6 +1,6 @@
 {
   "name": "ar-data-agent",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Pay-per-call Argentine data agent priced in wARS on Celo via x402 (dolar, inflacion, feriados, CUIT, CBU).",
   "scripts": {
     "start": "node src/node.js",
