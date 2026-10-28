@@ -5,7 +5,7 @@ import { recoverTypedDataAddress } from 'viem';
 import { createApp } from '../src/app.js';
 import { ASSETS, x402Routes } from '../src/pricing.js';
 import { BUY_SERVICE, briefPrompt, buyCompletion, dailyBudget, makeBuyer, taggedSigner } from '../src/buy.js';
-import { BriefGuard, durableGuard, guardLogic, memoryGuard, paymentKey } from '../src/guard.js';
+import { BriefGuard, durableGuard, guardLogic, memoryGuard, payerFromKey, paymentKey } from '../src/guard.js';
 import { makePayFetch } from '../scripts/pay.js';
 import { quote } from '../scripts/buy-proof.js';
 
@@ -152,10 +152,10 @@ describe('Build with buy (upstream purchase, flagged)', () => {
 
 describe('Replay lock + global budget for /ar/brief (Zealynx review)', () => {
   // Capture one real signed payment header, then replay it.
-  async function signedHeader(app) {
+  async function signedHeader(app, privateKey = generatePrivateKey()) {
     let hdr = null;
     const spy = (i, init) => { const req = new Request(i, init); hdr ||= req.headers.get('payment-signature') || req.headers.get('x-payment'); return app.fetch(req); };
-    const { payFetch } = makePayFetch({ privateKey: generatePrivateKey(), asset: 'USDC', baseFetch: spy });
+    const { payFetch } = makePayFetch({ privateKey, asset: 'USDC', baseFetch: spy });
     const r = await payFetch('http://x/ar/brief?lang=es');
     return { r, hdr };
   }
@@ -213,6 +213,25 @@ describe('Replay lock + global budget for /ar/brief (Zealynx review)', () => {
     expect(third.r.status).toBe(503); expect(bought(a.gw) + bought(b.gw)).toBe(2);
     expect(a.fac.settle).toHaveBeenCalledTimes(1); // the refused call is not settled
   });
+  it('per-payer quota: one funded address signing fresh nonces cannot drain the shared budget (Zealynx, 28 Oct)', async () => {
+    const { app, gw, fac } = setup(memoryGuard(20, { maxPerPayer: 2 }));
+    const pk = generatePrivateKey();
+    const rs = [];
+    for (let i = 0; i < 4; i++) rs.push((await signedHeader(app, pk)).r.status);
+    expect(rs).toEqual([200, 200, 503, 503]); expect(bought(gw)).toBe(2);
+    expect(fac.settle).toHaveBeenCalledTimes(2); // refused calls are not settled
+    expect((await signedHeader(app)).r.status).toBe(200); // another payer still gets served
+  });
+  it('per-payer quota in the shared logic: counted per address and day, junk payer refused', async () => {
+    const store = new Map(); let t = Date.parse('2026-10-28T10:00:00Z');
+    const g = guardLogic({ get: async k => store.get(k), put: async (k, v) => { store.set(k, v); } }, { maxPerDay: 3, maxPerPayer: 1, now: () => t });
+    const A = '0x' + 'a'.repeat(40), B = '0x' + 'B'.repeat(40);
+    expect(await g.take(A)).toBe(true); expect(await g.take(A.toUpperCase().replace('0X', '0x'))).toBe(false);
+    expect(await g.take(B)).toBe(true); expect(await g.take('nope')).toBe(false); expect(await g.take(null)).toBe(false);
+    expect(store.get('d:2026-10-28')).toBe(2); // refused takes do not use the global budget
+    t = Date.parse('2026-10-29T00:01:00Z'); expect(await g.take(A)).toBe(true);
+    expect(payerFromKey(A + ':0x' + '1'.repeat(64))).toBe(A); expect(payerFromKey('junk')).toBe(null);
+  });
   it('budget resets on a new UTC day', async () => {
     let t = Date.parse('2026-10-26T23:59:00Z');
     const g = memoryGuard(1, { now: () => t });
@@ -229,8 +248,10 @@ describe('Replay lock + global budget for /ar/brief (Zealynx review)', () => {
     expect(await g.claim('0xa:0x1')).toBe(true); expect(await g.claim('0xa:0x1')).toBe(false); expect(await g.claim('')).toBe(false);
     expect(await g.take()).toBe(true); expect(await g.take()).toBe(true); expect(await g.take()).toBe(false);
     expect(alarm).toBeGreaterThan(Date.now());
-    store.set('k:old', Date.now() - 1); store.set('d:2000-01-01', 5); await obj.alarm();
-    expect(store.has('k:old')).toBe(false); expect(store.has('d:2000-01-01')).toBe(false); expect(store.has('k:0xa:0x1')).toBe(true);
+    const pq = durableGuard(ns, 10, 1), P = '0x' + 'c'.repeat(40);
+    expect(await pq.take(P)).toBe(true); expect(await pq.take(P)).toBe(false); // per-payer quota through the Durable Object
+    store.set('k:old', Date.now() - 1); store.set('d:2000-01-01', 5); store.set('p:2000-01-01:' + P, 1); await obj.alarm();
+    expect(store.has('k:old')).toBe(false); expect(store.has('d:2000-01-01')).toBe(false); expect(store.has('p:2000-01-01:' + P)).toBe(false); expect(store.has('k:0xa:0x1')).toBe(true);
   });
   it('durableGuard fails closed when the Durable Object errors', async () => {
     const ns = { idFromName: n => n, get: () => ({ fetch: async () => new Response('boom', { status: 500 }) }) };

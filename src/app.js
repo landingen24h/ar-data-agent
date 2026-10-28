@@ -8,7 +8,7 @@ import { getAddress, isAddress } from 'viem';
 import { ASSETS, CELO_MAINNET, FACILITATOR_MAINNET, routeTable, x402Routes } from './pricing.js';
 import * as d from './data.js';
 import { BUY_SERVICE, briefPrompt, buyCompletion, makeBuyer } from './buy.js';
-import { memoryGuard, paymentKey } from './guard.js';
+import { memoryGuard, payerFromKey, paymentKey } from './guard.js';
 
 const PAID = {
   '/ar/dolar': { parse: d.parseDolar, run: (i, f) => d.getDolar(i, f) },
@@ -75,7 +75,7 @@ export function createApp(cfg) {
       if (!(await buyer.guard.claim(key))) return { ok: false, error: 'payment_already_used', status: 409 };
       const dol = await d.getDolar({ casa: 'all' }, f);
       if (!dol.ok) return dol;
-      if (!(await buyer.guard.take())) return { ok: false, error: 'brief_daily_budget_reached', status: 503 };
+      if (!(await buyer.guard.take(payerFromKey(key)))) return { ok: false, error: 'brief_daily_budget_reached', status: 503 }; // global + per-payer quota
       const b = await buyCompletion(buyer.payFetch, briefPrompt(dol.data, i.lang));
       // Upstream failure -> our handler returns >= 400, so the caller's payment is NOT settled.
       if (!b.ok) return { ok: false, error: `upstream_${b.error}`, status: 502 };
