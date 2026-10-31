@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.3 (2026-10-31)
+Fixes from the Celo hackathon automated review.
+* Security: `npm audit` now reports 0 vulnerabilities. @x402/* upgraded to 2.29.0 and zod to 4.x (GHSA-mrhx-c7xc-m3w5, memory exhaustion on oversized constrained collections).
+* Private keys are format-checked everywhere they are used (`src/keys.js`): buyer CLI, MCP server, Buy client and the worker's BUY_PRIVATE_KEY. A malformed key fails fast with a clear message that never echoes the value; on the server it switches /ar/brief off instead of crashing the agent.
+* Bare `/ar/cuit` and `/ar/cbu` (no query at all) now answer `402 Payment Required` with the full payment terms and bazaar discovery info, so x402 catalogs and crawlers can index them. Missing input on a call that carries a payment is still refused with a free 400, before verify or settle.
+
 ## 0.2.2 (2026-10-28)
 * /ar/brief settles the caller's payment BEFORE buying the completion (x402 "upfront" flow). Verify checks a balance but does not hold it, so funds could move to a fresh address between verify and settle after we had already paid upstream (feedback from the Celo forum). Other routes keep verify, handler, settle.
 * The replay lock and the daily budget unit are taken before settle, so a refused call is never charged. If settle fails, the unit is handed back (nothing was bought).

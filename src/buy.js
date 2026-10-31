@@ -17,6 +17,7 @@ import { ExactEvmScheme } from '@x402/evm/exact/client';
 import { ExactEvmSchemeV1 } from '@x402/evm/v1';
 import { http, getAddress } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
+import { normalizePrivateKey } from './keys.js';
 import { celo } from 'viem/chains';
 import { taggedWalletClient } from './attribution.js';
 import { ASSETS, CELO_MAINNET } from './pricing.js';
@@ -49,7 +50,7 @@ export function taggedSigner(account, rpcUrl = 'https://forno.celo.org') {
  */
 export function makeBuyer({ privateKey, account, asset = 'USAT', maxAtomic = BUY_SERVICE.priceAtomic, baseFetch = fetch, rpcUrl } = {}) {
   if (!ASSETS[asset] || !BUY_SERVICE.assets.includes(asset)) throw new Error(`unsupported buy asset ${asset}`);
-  const acct = account || privateKeyToAccount(privateKey);
+  const acct = account || privateKeyToAccount(normalizePrivateKey(privateKey, 'buy private key'));
   const signer = taggedSigner(acct, rpcUrl);
   const token = ASSETS[asset].address.toLowerCase();
   const cap = BigInt(maxAtomic);

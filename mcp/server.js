@@ -15,7 +15,11 @@ const MAX_WARS = process.env.AR_AGENT_MAX_WARS || '20';
 // Payments are pinned to the AR Data Agent seller wallet, so pointing AR_AGENT_URL at a mirror
 // can't send your wARS anywhere else. Override only if you run your own seller.
 const PAY_TO = process.env.AR_AGENT_PAY_TO || '0xb6d00A148AD63Fd9CCDd484B687c6012bA1561E1';
-const payer = KEY ? makePayFetch({ privateKey: KEY, asset: ASSET, maxWars: MAX_WARS, payTo: PAY_TO }) : null;
+let payer = null;
+if (KEY) {
+  try { payer = makePayFetch({ privateKey: KEY, asset: ASSET, maxWars: MAX_WARS, payTo: PAY_TO }); }
+  catch (e) { console.error(`ar-data-agent MCP: ${e.message}. Fix AR_AGENT_PRIVATE_KEY / AR_AGENT_ASSET or unset the key to use quote mode.`); process.exit(2); }
+}
 
 function qs(params) {
   const u = new URLSearchParams();
@@ -43,7 +47,7 @@ async function call(path, params) {
 }
 
 const out = (o) => ({ content: [{ type: 'text', text: JSON.stringify(o, null, 2) }] });
-const server = new McpServer({ name: 'ar-data-agent', version: '0.2.2' });
+const server = new McpServer({ name: 'ar-data-agent', version: '0.2.3' });
 
 server.tool('ar_dolar', 'Argentina USD/ARS quotes (oficial, blue, MEP, CCL, cripto, tarjeta, mayorista) with spread and blue gap. 15 wARS per call.',
   { casa: z.enum(['all', 'oficial', 'blue', 'mep', 'ccl', 'cripto', 'tarjeta', 'mayorista']).optional() },

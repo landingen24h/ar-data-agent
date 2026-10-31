@@ -6,9 +6,11 @@ import { x402Client, wrapFetchWithPayment } from '@x402/fetch';
 import { ExactEvmScheme } from '@x402/evm/exact/client';
 import { privateKeyToAccount } from 'viem/accounts';
 import { ASSETS, CELO_MAINNET, ROUTES, toBaseUnits } from '../src/pricing.js';
+import { normalizePrivateKey } from '../src/keys.js';
 
 export function makePayFetch({ privateKey, asset = 'wARS', rpcUrl = 'https://forno.celo.org', baseFetch = fetch, maxWars = '50', payTo } = {}) {
-  const account = privateKeyToAccount(privateKey);
+  if (!ASSETS[asset]) throw new Error(`unsupported asset ${asset}`);
+  const account = privateKeyToAccount(normalizePrivateKey(privateKey, 'buyer private key'));
   const client = new x402Client();
   // Permit2 assets are outside the library's default-asset table: opt in with an atomic cap.
   client.setSpendControls({

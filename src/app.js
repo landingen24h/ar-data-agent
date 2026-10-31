@@ -9,6 +9,7 @@ import { getAddress, isAddress } from 'viem';
 import { ASSETS, CELO_MAINNET, FACILITATOR_MAINNET, routeTable, x402Routes } from './pricing.js';
 import * as d from './data.js';
 import { BUY_SERVICE, briefPrompt, buyCompletion, makeBuyer } from './buy.js';
+import { isValidPrivateKey } from './keys.js';
 import { memoryGuard, newToken, payerFromKey, paymentKey } from './guard.js';
 
 const PAID = {
@@ -63,7 +64,9 @@ export function createApp(cfg) {
   // Needs a replay lock + global budget (cfg.buy.guard, see src/guard.js). Without one it stays off,
   // unless cfg.buy.localGuard is set (single process only: local Node server and tests).
   const guard = cfg.buy && (cfg.buy.guard || (cfg.buy.localGuard ? memoryGuard(Number(cfg.buy.maxCallsPerDay) || 20) : null));
-  if (cfg.buy && cfg.buy.enabled && guard && (cfg.buy.payFetch || cfg.buy.privateKey)) {
+  if (cfg.buy && cfg.buy.enabled && cfg.buy.privateKey && !cfg.buy.payFetch && !isValidPrivateKey(cfg.buy.privateKey)) {
+    console.error('buy disabled: BUY_PRIVATE_KEY is malformed (expected 32-byte hex)'); // value never logged
+  } else if (cfg.buy && cfg.buy.enabled && guard && (cfg.buy.payFetch || cfg.buy.privateKey)) {
     const pf = cfg.buy.payFetch || makeBuyer({ privateKey: cfg.buy.privateKey, asset: cfg.buy.asset || 'USAT' }).payFetch;
     buyer = { payFetch: pf, asset: cfg.buy.asset || 'USAT', guard };
   }
@@ -131,7 +134,13 @@ export function createApp(cfg) {
   for (const p of Object.keys(PAID_ALL)) {
     app.use(base + p, async (c, next) => {
       const parsed = PAID_ALL[p].parse(c.req.query());
-      if (!parsed.ok) return c.json({ error: parsed.error, charged: false }, parsed.status);
+      if (!parsed.ok) {
+        // A bare call with no input and no payment (e.g. a crawler or x402 catalog probing the route)
+        // gets the 402 with the payment terms. With a payment attached, missing input is still a free 400.
+        const paying = c.req.header('payment-signature') || c.req.header('x-payment');
+        if (!paying && /_required$/.test(parsed.error) && Object.keys(c.req.query()).length === 0) return next();
+        return c.json({ error: parsed.error, charged: false }, parsed.status);
+      }
       c.set('input', parsed.input);
       await next();
     });

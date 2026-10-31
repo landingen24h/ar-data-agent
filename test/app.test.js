@@ -11,6 +11,8 @@ import { validateCbu, validateCuit } from '../src/data.js';
 import { ATTRIBUTION_CODE, taggedWalletClient } from '../src/attribution.js';
 import { registerCalldata } from '../scripts/register-agent.js';
 import { makePayFetch } from '../scripts/pay.js';
+import { normalizePrivateKey, isValidPrivateKey } from '../src/keys.js';
+import { makeBuyer } from '../src/buy.js';
 
 const PAY_TO = '0xb6d00A148AD63Fd9CCDd484B687c6012bA1561E1';
 const supported = JSON.parse(readFileSync(new URL('../src/supported.celo.json', import.meta.url)));
@@ -67,8 +69,29 @@ describe('free routes', () => {
 describe('payment gate', () => {
   it('rejects bad input for free before asking for payment', async () => {
     const { app, fac } = makeApp();
-    const r = await app.request('http://x/ar/cbu');
-    expect(r.status).toBe(400); expect((await r.json()).charged).toBe(false); expect(fac.verify).not.toHaveBeenCalled();
+    for (const u of ['http://x/ar/cbu?cbu=', 'http://x/ar/cuit?foo=1', 'http://x/ar/dolar?casa=nope']) {
+      const r = await app.request(u);
+      expect(r.status).toBe(400); expect((await r.json()).charged).toBe(false);
+    }
+    expect(fac.verify).not.toHaveBeenCalled();
+  });
+  it('bare /ar/cuit and /ar/cbu (no query) answer 402 with the payment terms, so x402 catalogs can index them', async () => {
+    const { app, fac } = makeApp();
+    for (const p of ['/ar/cuit', '/ar/cbu']) {
+      const r = await app.request('http://x' + p);
+      expect(r.status).toBe(402);
+      const pr = decode(r.headers.get('payment-required'));
+      expect(pr.accepts[0].asset).toBe(ASSETS.wARS.address);
+      expect(pr.extensions.bazaar.info.input.queryParams).toEqual(DISCOVERY[p].input);
+    }
+    expect(fac.verify).not.toHaveBeenCalled();
+  });
+  it('a paid call with no input is refused for free, before verify or settle', async () => {
+    const { app, fac } = makeApp();
+    const { payFetch } = makePayFetch({ privateKey: generatePrivateKey(), asset: 'USDC', baseFetch: (i, init) => app.fetch(new Request(i, init)) });
+    const r = await payFetch('http://x/ar/cuit');
+    expect(r.status).toBe(400); expect(await r.json()).toMatchObject({ error: 'cuit_required', charged: false });
+    expect(fac.verify).not.toHaveBeenCalled(); expect(fac.settle).not.toHaveBeenCalled();
   });
   it('answers 402 with wARS first, then USDC, USDT and USA₮', async () => {
     const { app } = makeApp();
@@ -156,4 +179,32 @@ describe.runIf(process.env.LIVE === '1')('live Celo facilitator', () => {
     expect(v.isValid).toBe(false);
     expect(`${v.invalidReason} ${v.invalidReasonDetails || ''}`).toMatch(/insufficient|TRANSFER_FROM_FAILED/);
   }, 60000);
+});
+
+describe('private key format validation', () => {
+  const good = generatePrivateKey();
+  it('accepts 32-byte hex with or without 0x and normalizes it', () => {
+    expect(normalizePrivateKey(good)).toBe(good.toLowerCase());
+    expect(normalizePrivateKey(good.slice(2).toUpperCase())).toBe(good.toLowerCase());
+    expect(normalizePrivateKey('  ' + good + '\n')).toBe(good.toLowerCase());
+  });
+  it('rejects malformed keys without echoing them', () => {
+    for (const bad of [undefined, '', '0x1234', good + 'ff', good.slice(0, -1) + 'g', '0x' + '0'.repeat(64), 'my seed phrase words here']) {
+      expect(isValidPrivateKey(bad)).toBe(false);
+      try { normalizePrivateKey(bad, 'k'); throw new Error('no throw'); }
+      catch (e) { expect(e.message).toMatch(/^k is (missing|malformed)/); if (bad) expect(e.message).not.toContain(String(bad).trim()); }
+    }
+  });
+  it('pay and buy clients fail fast on a bad key', () => {
+    expect(() => makePayFetch({ privateKey: '0xdeadbeef' })).toThrow(/buyer private key is malformed/);
+    expect(() => makeBuyer({ privateKey: 'nope' })).toThrow(/buy private key is malformed/);
+  });
+  it('a malformed BUY_PRIVATE_KEY turns /ar/brief off instead of crashing the agent', async () => {
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const app = createApp({ payTo: PAY_TO, facilitatorClient: mockFacilitator(), buy: { enabled: true, privateKey: '0xnot-a-key', localGuard: true } });
+    expect((await app.request('http://x/ar/brief')).status).toBe(404);
+    expect((await app.request('http://x/ar/cuit?cuit=20123456786')).status).toBe(402);
+    expect(err.mock.calls.flat().join(' ')).not.toContain('0xnot-a-key');
+    err.mockRestore();
+  });
 });
