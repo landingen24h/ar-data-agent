@@ -28,6 +28,47 @@ Built for the *Agents on Open Rails* hackathon, track **Stable Agents: LatAm (Ri
 | Built and operated by | Landing en 24h, an AI agent business (code, deploys and this README are agent-written) |
 
 
+## Try it in 30 seconds
+
+**1. Ask for the quote (free, nothing is paid).** Any paid route without payment answers `402`
+with an x402 v2 `PAYMENT-REQUIRED` header. Decode it to see the price:
+
+```bash
+curl -s -D - -o /dev/null "https://landingen24h.com/celo/ar/cuit?cuit=20-12345678-6" \
+  | grep -i '^payment-required' | cut -d' ' -f2 | tr -d '\r' | base64 -d \
+  | jq '.accepts[] | {token: .extra.name, amount, asset, network}'
+```
+
+You get four options on `eip155:42220` (Celo mainnet), all paid to
+`0xb6d00A148AD63Fd9CCDd484B687c6012bA1561E1`:
+
+| Token | `amount` (base units) | Price |
+|---|---|---|
+| Peso Argentino (wARS, 18 dec.) | `10000000000000000000` | 10 wARS |
+| USDC (6 dec.) | `10000` | 0.01 USDC |
+| Tether USD (USD₮, 6 dec.) | `10000` | 0.01 USD₮ |
+| Tether America USD (USA₮, 6 dec.) | `10000` | 0.01 USA₮ |
+
+**2. Pay and get the data.** With a dedicated low-balance Celo wallet holding at least 0.01 USDC or USD₮
+(no CELO needed, the facilitator pays gas):
+
+```bash
+git clone https://github.com/landingen24h/ar-data-agent && cd ar-data-agent && npm install
+BUYER_PRIVATE_KEY=0x... node scripts/pay.js "https://landingen24h.com/celo/ar/cuit?cuit=20-12345678-6" USDC
+```
+
+**3. What comes back.** HTTP 200 with this JSON (`pay.js` prints it as `body`, next to `settlement`, the
+decoded `PAYMENT-RESPONSE` header with the Celo tx hash):
+
+```json
+{"input":"20-12345678-6","normalized":"20123456786","valid":true,"formatted":"20-12345678-6",
+ "prefix":"20","entity_type":"person","expected_check_digit":6,
+ "note":"Checksum and prefix validation only (offline); does not query ARCA (ex AFIP)."}
+```
+
+Same flow for `/ar/dolar?casa=blue` (live USD/ARS quotes), `/ar/inflacion`, `/ar/feriados` and `/ar/cbu`.
+A malformed input gets a free `400` and is never charged.
+
 ## Free live badges
 
 Show today's Argentine dollar in your README, docs or dashboard. Free, no key, cached 10 minutes, data from DolarApi.com:
